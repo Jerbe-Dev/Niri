@@ -259,7 +259,7 @@ get_discovered_modules() {
     
     # 1. Add configurations specified in the installation order
     for ordered_item in "${PREFERRED_ORDER[@]}"; do
-        if [ -d "configs/$ordered_item" ]; then
+        if [ -d "$SCRIPT_DIR/configs/$ordered_item" ]; then
             dynamic_modules+=("$ordered_item")
         fi
     done
@@ -267,7 +267,7 @@ get_discovered_modules() {
     # 2. Scan and append any newly added configurations found in the directory
     if [ -d "configs" ]; then
         local entry
-        for entry in configs/*; do
+        for entry in "$SCRIPT_DIR"/configs/*; do
             if [ -d "$entry" ]; then
                 local base_entry="${entry##*/}"
                 local is_known=false
@@ -821,8 +821,8 @@ phase_install_shell_config() {
     log_info "Using the centralized backup matrix for existing shell configuration files."
 
     # 6. Repository User Space Layout Deployment
-    if [ -f "home/.zshrc" ]; then
-        if cp -f "home/.zshrc" "$HOME/.zshrc" 2>>"$LOG_FILE"; then
+    if [ -f "$SCRIPT_DIR/home/.zshrc" ]; then
+        if cp -f "$SCRIPT_DIR/home/.zshrc" "$HOME/.zshrc" 2>>"$LOG_FILE"; then
             log_success "Deployed target user profile link mapping: ~/.zshrc"
         else
             log_fail "Failed to copy user environment file: home/.zshrc"
@@ -832,8 +832,8 @@ phase_install_shell_config() {
         log_warn "Repository layout missing configuration context element: home/.zshrc"
     fi
 
-    if [ -f "home/.p10k.zsh" ]; then
-        if cp -f "home/.p10k.zsh" "$HOME/.p10k.zsh" 2>>"$LOG_FILE"; then
+    if [ -f "$SCRIPT_DIR/home/.p10k.zsh" ]; then
+        if cp -f "$SCRIPT_DIR/home/.p10k.zsh" "$HOME/.p10k.zsh" 2>>"$LOG_FILE"; then
             log_success "Deployed target user prompt profile link mapping: ~/.p10k.zsh"
         else
             log_fail "Failed to copy prompt layout configuration item: home/.p10k.zsh"
@@ -1052,7 +1052,7 @@ phase_check_noctalia_version() {
 }
 
 phase_deploy_brave_flags() {
-    if [ ! -f "configs/brave-flags.conf" ]; then
+    if [ ! -f "$SCRIPT_DIR/configs/brave-flags.conf" ]; then
         return
     fi
     if $DRY_RUN; then
@@ -1060,7 +1060,7 @@ phase_deploy_brave_flags() {
         return
     fi
     mkdir -p "$HOME/.config" 2>>"$LOG_FILE"
-    if cp -f "configs/brave-flags.conf" "$HOME/.config/brave-flags.conf" 2>>"$LOG_FILE"; then
+    if cp -f "$SCRIPT_DIR/configs/brave-flags.conf" "$HOME/.config/brave-flags.conf" 2>>"$LOG_FILE"; then
         log_success "Deployed Brave Wayland launch flags: ~/.config/brave-flags.conf"
     else
         log_warn "Failed to deploy ~/.config/brave-flags.conf"
