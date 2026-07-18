@@ -433,21 +433,29 @@ phase_resolve_dependencies() {
         local pkg="${missing_pkgs[i]}"
         log_info "Installing package: $pkg"
         
-        if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
-            log_success "Successfully installed native package: $pkg"
-            INSTALLED_PACKAGES+=("$pkg")
-        else
-            if [ -n "$helper" ]; then
-                log_info "Package not found natively. Retrying installation with AUR helper: $helper"
-                if "$helper" -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
-                    log_success "Successfully installed AUR package: $pkg"
-                    INSTALLED_PACKAGES+=("$pkg")
-                    continue
-                fi
+        if pacman -Si "$pkg" &>/dev/null; then
+            if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+                log_success "Successfully installed native package: $pkg"
+                INSTALLED_PACKAGES+=("$pkg")
+                continue
             fi
-            log_fail "Failed to install required program package: $pkg"
+
+            log_fail "Official repository package installation failed: $pkg"
             FAILED_PACKAGES+=("$pkg")
+            continue
         fi
+
+        if [ -n "$helper" ]; then
+            log_info "Package is not available in official repositories. Trying AUR helper: $helper"
+            if "$helper" -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+                log_success "Successfully installed AUR package: $pkg"
+                INSTALLED_PACKAGES+=("$pkg")
+                continue
+            fi
+        fi
+
+        log_fail "Failed to install required program package: $pkg"
+        FAILED_PACKAGES+=("$pkg")
     done
 }
 
@@ -505,21 +513,29 @@ phase_install_default_apps() {
     local pkg
     for pkg in "${missing_pkgs[@]}"; do
         log_info "Installing package: $pkg"
-        if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
-            log_success "Successfully installed native package: $pkg"
-            INSTALLED_PACKAGES+=("$pkg")
-        else
-            if [ -n "$helper" ]; then
-                log_info "Package not found natively. Retrying installation with AUR helper: $helper"
-                if "$helper" -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
-                    log_success "Successfully installed AUR package: $pkg"
-                    INSTALLED_PACKAGES+=("$pkg")
-                    continue
-                fi
+        if pacman -Si "$pkg" &>/dev/null; then
+            if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+                log_success "Successfully installed native package: $pkg"
+                INSTALLED_PACKAGES+=("$pkg")
+                continue
             fi
-            log_fail "Failed to install default application package: $pkg"
+
+            log_fail "Official repository default application installation failed: $pkg"
             FAILED_PACKAGES+=("$pkg")
+            continue
         fi
+
+        if [ -n "$helper" ]; then
+            log_info "Package is not available in official repositories. Trying AUR helper: $helper"
+            if "$helper" -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+                log_success "Successfully installed AUR package: $pkg"
+                INSTALLED_PACKAGES+=("$pkg")
+                continue
+            fi
+        fi
+
+        log_fail "Failed to install default application package: $pkg"
+        FAILED_PACKAGES+=("$pkg")
     done
 }
 
