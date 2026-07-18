@@ -11,7 +11,7 @@ input {
     }
 
     // Enable numlock on startup, omitting this setting disables it.
-    numlock
+    // numlock  -- disabled per user request
   }
 
   // Libinput settings.
