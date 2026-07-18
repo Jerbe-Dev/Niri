@@ -85,7 +85,7 @@ declare -A PACKAGE_MAP=(
 # are kept in the list.
 readonly DEFAULT_APP_ORDER=(
     "cliphist"
-    "thunar"
+    "nautilus"
     "brave"
     "vscodium"
     "obsidian"
@@ -95,7 +95,7 @@ readonly DEFAULT_APP_ORDER=(
 
 declare -A DEFAULT_APP_BINARY_MAP=(
     ["cliphist"]="cliphist"
-    ["thunar"]="thunar"
+    ["nautilus"]="nautilus"
     ["brave"]="brave"
     ["vscodium"]="codium"
     ["obsidian"]="obsidian"
@@ -105,7 +105,7 @@ declare -A DEFAULT_APP_BINARY_MAP=(
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["cliphist"]="cliphist"
-    ["thunar"]="thunar"
+    ["nautilus"]="nautilus"
     ["brave"]="brave-bin"
     ["vscodium"]="vscodium-bin"
     ["obsidian"]="obsidian"

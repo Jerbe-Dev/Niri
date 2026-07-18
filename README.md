@@ -225,7 +225,7 @@ All keybinds will open this if not changed.
 | 💻 Terminal     | Kitty          |
 | 📝 Code Editor  | VSCodium       |
 | 📖 Notes        | Obsidian       |
-| 📂 File Manager | Thunar         |
+| 📂 File Manager | Nautilus         |
 | 🎵 Music        | Spotify        |
 
 </details>
