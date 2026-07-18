@@ -10,6 +10,9 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # --- Runtime Execution Performance Benchmarking ---
 START_TIME=$(date +%s)
 readonly START_TIME
@@ -565,16 +568,31 @@ phase_deploy_configs() {
                 local final_dest="$HOME/.config/$mod"
                 
                 rm -rf "$tmp_dest"
-                if cp -r "configs/$mod" "$tmp_dest" 2>>"$LOG_FILE"; then
+                if cp -a "$SCRIPT_DIR/configs/$mod" "$tmp_dest" 2>>"$LOG_FILE"; then
+                    local rollback_dest="$HOME/.config/.$mod.rollback.$TIMESTAMP"
+
                     if [ -e "$final_dest" ]; then
-                        rm -rf "$final_dest" 2>>"$LOG_FILE"
+                        rm -rf "$rollback_dest"
+                        if ! mv "$final_dest" "$rollback_dest" 2>>"$LOG_FILE"; then
+                            log_fail "Could not stage existing configuration for rollback: $mod"
+                            FAILED_CONFIGS+=("$mod")
+                            rm -rf "$tmp_dest"
+                            continue
+                        fi
                     fi
+
                     if mv "$tmp_dest" "$final_dest" 2>>"$LOG_FILE"; then
+                        rm -rf "$rollback_dest"
                         log_success "Installed configuration profile: $mod"
                         INSTALLED_CONFIGS+=("$mod")
                     else
-                        log_fail "Atomic move step failed for configuration module: $mod"
+                        log_fail "Configuration deployment failed; restoring previous configuration: $mod"
+                        rm -rf "$final_dest"
+                        if [ -e "$rollback_dest" ]; then
+                            mv "$rollback_dest" "$final_dest" 2>>"$LOG_FILE" || true
+                        fi
                         FAILED_CONFIGS+=("$mod")
+                        rm -rf "$tmp_dest"
                     fi
                 else
                     log_fail "Staging execution step failed for configuration module: $mod"
