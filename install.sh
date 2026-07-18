@@ -40,7 +40,7 @@ readonly PREFERRED_ORDER=(
     "niri"
     "noctalia"
     "kitty"
-    "waybar"
+    "nvim"
     "mpd"
     "mpv"
     "fastfetch"
@@ -53,7 +53,6 @@ readonly PREFERRED_ORDER=(
 declare -A BINARY_MAP=(
     ["nvim"]="nvim"
     ["kitty"]="kitty"
-    ["waybar"]="waybar"
     ["fastfetch"]="fastfetch"
     ["mpv"]="mpv"
     ["mpd"]="mpd"
@@ -66,7 +65,6 @@ declare -A BINARY_MAP=(
 declare -A PACKAGE_MAP=(
     ["nvim"]="neovim"
     ["kitty"]="kitty"
-    ["waybar"]="waybar"
     ["fastfetch"]="fastfetch"
     ["mpv"]="mpv"
     ["mpd"]="mpd"
@@ -678,9 +676,6 @@ phase_signal_environments() {
 
     if pgrep -x "kitty" &>/dev/null; then
         killall -USR1 kitty 2>/dev/null && log_success "Kitty configuration reload signal dispatched." || true
-    fi
-    if pgrep -x "waybar" &>/dev/null; then
-        killall -SIGUSR2 waybar 2>/dev/null && log_success "Waybar configuration reload signal dispatched." || true
     fi
 }
 
