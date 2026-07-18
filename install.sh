@@ -905,11 +905,11 @@ phase_compile_summary() {
 execute_restore_operation() {
     TOTAL_STEPS=2
     log_step "Restoring System Backups"
-    
+
     local backups=()
+    local dir
+
     if [ -d "$HOME" ]; then
-        local dir
-        # Safely locate timestamped backup matrices using bash wildcards
         for dir in "$HOME"/.config-backup-*; do
             if [ -d "$dir" ]; then
                 backups+=("$dir")
@@ -923,66 +923,55 @@ execute_restore_operation() {
     fi
 
     echo -e "\n  ${BOLD}Available Backups:${NC}"
+
     local i
     for i in "${!backups[@]}"; do
         echo -e "  ${GREEN}[$((i+1))]${NC} $(basename "${backups[$i]}")"
     done
+
     echo -e "  ${RED}[c]${NC} Cancel"
     echo -e "${BLUE}-------------------------------------------------------------------${NC}"
-    
+
     read -rp "Select a backup archive index to restore: " choice
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -le "${#backups[@]}" ] && [ "$choice" -gt 0 ]; then
-        local target_dir="${backups[$((choice - 1))]}"
-        log_info "Restoring configuration from: $target_dir"
-        
-        if [ ! -d "$HOME/.config" ]; then
-            mkdir -p "$HOME/.config"
+
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] ||
+       [ "$choice" -gt "${#backups[@]}" ] ||
+       [ "$choice" -lt 1 ]; then
+        log_info "Rollback procedures canceled."
+        return
+    fi
+
+    local target_dir="${backups[$((choice - 1))]}"
+    log_info "Restoring configuration from: $target_dir"
+
+    local item
+    local relative
+    local destination
+    local parent
+
+    while IFS= read -r -d '' item; do
+        relative="${item#$target_dir/}"
+        destination="$HOME/$relative"
+        parent="$(dirname "$destination")"
+
+        if ! mkdir -p "$parent" 2>>"$LOG_FILE"; then
+            log_fail "Failed to create restore destination: $parent"
+            continue
         fi
 
-        local item
-        for item in "$target_dir"/*; do
-            if [ -e "$item" ]; then
-                local base_name="${item##*/}"
-                local restore_tmp="$HOME/.config/.${base_name}.restore.tmp.$$"
-                local restore_old="$HOME/.config/.${base_name}.restore.old.$$"
+        if [ -e "$destination" ] || [ -L "$destination" ]; then
+            rm -rf "$destination" 2>>"$LOG_FILE" || true
+        fi
 
-                rm -rf "$restore_tmp" "$restore_old"
+        if cp -a "$item" "$destination" 2>>"$LOG_FILE"; then
+            log_success "Restored: ~/$relative"
+        else
+            log_fail "Failed to restore: ~/$relative"
+        fi
+    done < <(find "$target_dir" -mindepth 1 -print0)
 
-                if cp -a "$item" "$restore_tmp" 2>>"$LOG_FILE"; then
-                    if [ -e "$HOME/.config/$base_name" ]; then
-                        if ! mv "$HOME/.config/$base_name" "$restore_old" 2>>"$LOG_FILE"; then
-                            log_fail "Failed to stage existing config for restore: $base_name"
-                            rm -rf "$restore_tmp"
-                            continue
-                        fi
-                    fi
-
-                    if mv "$restore_tmp" "$HOME/.config/$base_name" 2>>"$LOG_FILE"; then
-                        rm -rf "$restore_old"
-                        log_success "Restored: ~/.config/$base_name"
-                    else
-                        log_fail "Failed to restore module: $base_name"
-                        rm -rf "$HOME/.config/$base_name"
-                        if [ -e "$restore_old" ]; then
-                            mv "$restore_old" "$HOME/.config/$base_name" 2>>"$LOG_FILE" || true
-                        fi
-                        rm -rf "$restore_tmp"
-                    fi
-                else
-                    log_fail "Failed to stage backup for restore: $base_name"
-                    rm -rf "$restore_tmp"
-                fi
-            fi
-        done
-        log_success "System rollback operations completed."
-    else
-        log_info "Rollback procedures canceled."
-    fi
+    log_success "System rollback operations completed."
 }
-
-# ==============================================================================
-# 6. Global Operational Entry Execution Orchestrator
-# ==============================================================================
 
 run_orchestrated_installer() {
     local interactive=$1
