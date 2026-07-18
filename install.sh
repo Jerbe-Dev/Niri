@@ -817,18 +817,8 @@ phase_install_shell_config() {
     done
 
     # 5. Backup Layer Safeguards Execution
-    local backup_targets=(".zshrc" ".p10k.zsh")
-    local tgt
-    for tgt in "${backup_targets[@]}"; do
-        if [ -e "$HOME/$tgt" ] || [ -L "$HOME/$tgt" ]; then
-            log_info "Preserving pre-existing system copy of: $tgt"
-            if rm -f "$HOME/$tgt.backup" 2>>"$LOG_FILE" && mv "$HOME/$tgt" "$HOME/$tgt.backup" 2>>"$LOG_FILE"; then
-                log_success "Saved shell configuration file copy backup to: $tgt.backup"
-            else
-                log_warn "Failed to rename or shift file location map item: $tgt"
-            fi
-        fi
-    done
+    # Existing shell configuration files are backed up centrally by phase_execute_backup().
+    log_info "Using the centralized backup matrix for existing shell configuration files."
 
     # 6. Repository User Space Layout Deployment
     if [ -f "home/.zshrc" ]; then
