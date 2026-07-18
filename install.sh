@@ -41,6 +41,7 @@ readonly PREFERRED_ORDER=(
     "noctalia"
     "kitty"
     "nvim"
+    "nvim"
     "mpd"
     "mpv"
     "fastfetch"
