@@ -229,8 +229,8 @@ log_warn()    { echo -e "  ${YELLOW}[WARN]  ${NC} $1"; log_to_file "WARN" "$1"; 
 # ==============================================================================
 
 verify_environment() {
-    if [ ! -d "configs" ]; then
-        log_fail "Directory root error. Script must be executed inside the git repository."
+    if [ ! -d "$SCRIPT_DIR/configs" ]; then
+        log_fail "Repository layout error. Required configs directory is missing."
         exit 1
     fi
 
@@ -238,6 +238,30 @@ verify_environment() {
         log_fail "Distribution target unsupported. This profile requires Arch Linux."
         exit 1
     fi
+
+    local required_commands=(
+        "sudo"
+        "pacman"
+        "find"
+        "cp"
+        "mv"
+        "rm"
+        "mkdir"
+    )
+
+    local cmd
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" &>/dev/null; then
+            log_fail "Required system command is missing: $cmd"
+            exit 1
+        fi
+    done
+
+    if ! command -v chsh &>/dev/null; then
+        log_warn "Optional command missing: chsh. Default shell configuration will be skipped."
+    fi
+
+    log_success "Environment and required system commands verified."
 }
 
 probe_network() {
