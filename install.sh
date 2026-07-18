@@ -102,6 +102,8 @@ readonly DEFAULT_APP_ORDER=(
 
 declare -A DEFAULT_APP_BINARY_MAP=(
     ["cliphist"]="cliphist"
+    ["playerctl"]="playerctl"
+    ["brightnessctl"]="brightnessctl"
     ["nautilus"]="nautilus"
     ["brave"]="brave"
     ["vscodium"]="codium"
@@ -115,6 +117,8 @@ declare -A DEFAULT_APP_BINARY_MAP=(
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["cliphist"]="cliphist"
+    ["playerctl"]="playerctl"
+    ["brightnessctl"]="brightnessctl"
     ["nautilus"]="nautilus"
     ["brave"]="brave-bin"
     ["vscodium"]="vscodium-bin"
@@ -460,7 +464,18 @@ phase_install_default_apps() {
         local check_cmd="${DEFAULT_APP_BINARY_MAP[$app]:-"$app"}"
         local target_pkg="${DEFAULT_APP_PACKAGE_MAP[$app]:-"$app"}"
 
-        if command -v "$check_cmd" &>/dev/null; then
+        local installed=false
+
+        case "$app" in
+            polkit-gnome|bibata-cursor-theme)
+                pacman -Qi "$target_pkg" &>/dev/null && installed=true
+                ;;
+            *)
+                command -v "$check_cmd" &>/dev/null && installed=true
+                ;;
+        esac
+
+        if $installed; then
             log_success "Default application already present: $app ($target_pkg)"
             ALREADY_PRESENT_PACKAGES+=("$target_pkg")
         else
