@@ -943,12 +943,34 @@ execute_restore_operation() {
         for item in "$target_dir"/*; do
             if [ -e "$item" ]; then
                 local base_name="${item##*/}"
-                # Safely clear the target destination before copying files back
-                rm -rf "$HOME/.config/$base_name" 2>>"$LOG_FILE"
-                if cp -a "$item" "$HOME/.config/" 2>>"$LOG_FILE"; then
-                    log_success "Restored: ~/.config/$base_name"
+                local restore_tmp="$HOME/.config/.${base_name}.restore.tmp.$$"
+                local restore_old="$HOME/.config/.${base_name}.restore.old.$$"
+
+                rm -rf "$restore_tmp" "$restore_old"
+
+                if cp -a "$item" "$restore_tmp" 2>>"$LOG_FILE"; then
+                    if [ -e "$HOME/.config/$base_name" ]; then
+                        if ! mv "$HOME/.config/$base_name" "$restore_old" 2>>"$LOG_FILE"; then
+                            log_fail "Failed to stage existing config for restore: $base_name"
+                            rm -rf "$restore_tmp"
+                            continue
+                        fi
+                    fi
+
+                    if mv "$restore_tmp" "$HOME/.config/$base_name" 2>>"$LOG_FILE"; then
+                        rm -rf "$restore_old"
+                        log_success "Restored: ~/.config/$base_name"
+                    else
+                        log_fail "Failed to restore module: $base_name"
+                        rm -rf "$HOME/.config/$base_name"
+                        if [ -e "$restore_old" ]; then
+                            mv "$restore_old" "$HOME/.config/$base_name" 2>>"$LOG_FILE" || true
+                        fi
+                        rm -rf "$restore_tmp"
+                    fi
                 else
-                    log_fail "Failed to restore module: $base_name"
+                    log_fail "Failed to stage backup for restore: $base_name"
+                    rm -rf "$restore_tmp"
                 fi
             fi
         done
