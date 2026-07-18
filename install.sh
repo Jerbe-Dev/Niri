@@ -137,6 +137,7 @@ TOTAL_STEPS=10  # Incremented to 10 to account for the Default Applications phas
 INSTALLED_CONFIGS=()
 SKIPPED_CONFIGS=()
 FAILED_CONFIGS=()
+FAILED_BACKUPS=()
 INSTALLED_PACKAGES=()
 ALREADY_PRESENT_PACKAGES=()
 FAILED_PACKAGES=()
@@ -537,8 +538,7 @@ phase_execute_backup() {
     done
 
     if [ ${#verified_backups[@]} -eq 0 ]; then
-        log_info "No pre-existing local configurations detected. Skipping backup phase."
-        return
+        log_info "No pre-existing module configurations detected."
     fi
 
     if ! mkdir -p "$BACKUP_DIR" 2>>"$LOG_FILE"; then
@@ -551,6 +551,7 @@ phase_execute_backup() {
             log_success "Saved backup copy of: ~/.config/$mod"
         else
             log_fail "Failed to copy backup configurations for module component target: $mod"
+            FAILED_BACKUPS+=("~/.config/$mod")
         fi
     done
 
@@ -578,6 +579,7 @@ phase_execute_backup() {
                 log_success "Saved backup copy of: ~/$relative"
             else
                 log_fail "Failed to back up: ~/$relative"
+                FAILED_BACKUPS+=("~/$relative")
             fi
         fi
     done
