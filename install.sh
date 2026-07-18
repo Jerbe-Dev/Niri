@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-# Gigi's Rice Installer - Professional Production Grade Deployment Engine
+# Niri Rice Installer - Professional Production Grade Deployment Engine
 # Target Environment: Arch Linux (Niri + Noctalia Base Ecosystem)
-# Reference URL: https://github.com/deadduck-09/gigis-rice
+# Reference URL: https://github.com/Jerbe-Dev/Niri
 # ==============================================================================
 
 # Strict Execution Guard: Exit on errors, unset variables, and pipeline faults
@@ -16,9 +16,9 @@ readonly START_TIME
 
 # --- Immutable Global System Constants ---
 readonly VERSION="3.0.0"
-readonly AUTHOR="Gigi"
-# readonly REPO_URL="https://github.com/deadduck-09/gigis-rice"
-readonly LOG_DIR="$HOME/.cache/gigis-rice"
+readonly AUTHOR="Jerbe"
+readonly REPO_URL="https://github.com/Jerbe-Dev/Niri"
+readonly LOG_DIR="$HOME/.cache/niri-rice"
 readonly LOG_FILE="$LOG_DIR/install.log"
 TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
 readonly TIMESTAMP
@@ -71,7 +71,7 @@ declare -A PACKAGE_MAP=(
     ["mpv"]="mpv"
     ["mpd"]="mpd"
     ["niri"]="niri"
-    ["noctalia"]="noctalia-git"
+    ["noctalia"]="noctalia-shell"
     ["rmpc"]="rmpc"
     ["yazi"]="yazi"
 )
@@ -81,31 +81,37 @@ declare -A PACKAGE_MAP=(
 # cliphist (needed by Noctalia's clipboard history keybind). They aren't
 # tied to a configs/<name> folder, so get_discovered_modules never picks
 # them up. Previously that meant they were documented but never installed.
+# Note: Spicetify customizes an existing Spotify install rather than
+# replacing it (it has nothing to theme without Spotify present), so both
+# are kept in the list.
 readonly DEFAULT_APP_ORDER=(
     "cliphist"
     "thunar"
-    "helium"
+    "brave"
     "vscodium"
     "obsidian"
     "spotify"
+    "spicetify"
 )
 
 declare -A DEFAULT_APP_BINARY_MAP=(
     ["cliphist"]="cliphist"
     ["thunar"]="thunar"
-    ["helium"]="helium"
+    ["brave"]="brave"
     ["vscodium"]="codium"
     ["obsidian"]="obsidian"
     ["spotify"]="spotify"
+    ["spicetify"]="spicetify"
 )
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["cliphist"]="cliphist"
     ["thunar"]="thunar"
-    ["helium"]="helium-browser-bin"
+    ["brave"]="brave-bin"
     ["vscodium"]="vscodium-bin"
     ["obsidian"]="obsidian"
     ["spotify"]="spotify"
+    ["spicetify"]="spicetify-cli"
 )
 
 # --- Runtime Analytical State Trackers ---
@@ -138,7 +144,10 @@ log_to_file() {
 
 cleanup_handler() {
     local exit_code=$?
-    if [ "$exit_code" -ne 0 ]; then
+    if [ "$exit_code" -eq 130 ]; then
+        echo -e "\n\n${YELLOW}Installation cancelled by user.${NC}"
+        log_to_file "INFO" "Execution cancelled by user (SIGINT/SIGTERM)."
+    elif [ "$exit_code" -ne 0 ]; then
         echo -e "\n\n${RED}${BOLD}âŒ Script terminated unexpectedly. Detailed diagnostics written to: $LOG_FILE${NC}"
         log_to_file "FATAL" "Execution process halted via shell trap error boundary."
     fi
@@ -155,7 +164,7 @@ print_banner() {
     clear
     echo -e "${PURPLE}â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—${NC}"
     echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
-    echo -e "${PURPLE}â•‘                 ${GREEN}ðŸŒ¿ Gigi's Rice Installer ðŸŒ¿${PURPLE}                     â•‘${NC}"
+    echo -e "${PURPLE}â•‘                 ${GREEN}ðŸŒ¿ Niri Rice Installer ðŸŒ¿${PURPLE}                       â•‘${NC}"
     echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
     echo -e "${PURPLE}â•‘                  ${CYAN}Niri + Noctalia Configuration${PURPLE}                  â•‘${NC}"
     echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
@@ -195,7 +204,7 @@ log_step() {
 log_success() { echo -e "  ${GREEN}âœ”${NC} $1"; log_to_file "SUCCESS" "$1"; }
 log_fail()    { echo -e "  ${RED}âŒ${NC} $1"; log_to_file "ERROR" "$1"; }
 log_info()    { echo -e "  ${CYAN}â„¹${NC} $1"; log_to_file "INFO" "$1"; }
-log_warn()    { echo -e "  ${YELLOW}âš ${NC} $1"; log_to_file "WARN" "$1"; }
+log_warn()    { echo -e "  ${YELLOW}âš  ${NC} $1"; log_to_file "WARN" "$1"; }
 
 # ==============================================================================
 # 3. Structural Hardware & Repository Inspection Functions
@@ -272,6 +281,30 @@ get_system_aur_helper() {
     fi
 }
 
+# --- Dependency Presence Verification ---
+# Most components expose a CLI binary we can probe with `command -v`. Noctalia
+# does not: it's launched as a named Quickshell config ("qs -c noctalia-shell"),
+# not a standalone executable. Checking `command -v noctalia` therefore always
+# fails, which made every phase treat Noctalia as "missing" on every run and
+# re-trigger installation of whatever PACKAGE_MAP pointed at, regardless of
+# whether it was already installed. For modules listed here, verify presence
+# via the pacman package database instead.
+declare -A PACMAN_CHECK_MODULES=(
+    ["noctalia"]=1
+)
+
+is_dependency_installed() {
+    local mod="$1"
+    local check_cmd="$2"
+    local pkg_name="$3"
+
+    if [ -n "${PACMAN_CHECK_MODULES[$mod]:-}" ]; then
+        pacman -Qi "$pkg_name" &>/dev/null
+    else
+        command -v "$check_cmd" &>/dev/null
+    fi
+}
+
 # ==============================================================================
 # 4. Functional Execution Core Phases
 # ==============================================================================
@@ -285,10 +318,10 @@ phase_validate_env() {
         log_success "Niri base environment verified."
     fi
 
-    if ! command -v noctalia &>/dev/null; then
-        log_warn "Noctalia configuration shell interface not found."
-    else
+    if is_dependency_installed "noctalia" "${BINARY_MAP[noctalia]}" "${PACKAGE_MAP[noctalia]}"; then
         log_success "Noctalia base environment verified."
+    else
+        log_warn "Noctalia configuration shell interface not found."
     fi
 }
 
@@ -326,7 +359,7 @@ phase_inspect_dependencies() {
         local check_cmd="${BINARY_MAP[$mod]:-"$mod"}"
         local target_pkg="${PACKAGE_MAP[$mod]:-"$mod"}"
         
-        if command -v "$check_cmd" &>/dev/null; then
+        if is_dependency_installed "$mod" "$check_cmd" "$target_pkg"; then
             log_success "Package dependency met: $mod ($target_pkg)"
             ALREADY_PRESENT_PACKAGES+=("$target_pkg")
         else
@@ -354,7 +387,7 @@ phase_resolve_dependencies() {
         local check_cmd="${BINARY_MAP[$mod]:-"$mod"}"
         local target_pkg="${PACKAGE_MAP[$mod]:-"$mod"}"
         
-        if ! command -v "$check_cmd" &>/dev/null; then
+        if ! is_dependency_installed "$mod" "$check_cmd" "$target_pkg"; then
             missing_pkgs+=("$target_pkg")
             missing_mods+=("$mod")
         fi
@@ -580,16 +613,16 @@ phase_deploy_configs() {
 }
 
 # ==============================================================================
-# NEW MODULE: Gigi's Shell Configuration Pipeline
+# NEW MODULE: Niri Rice Shell Configuration Pipeline
 # ==============================================================================
 
 phase_install_shell_config() {
-    log_step "Gigi's Shell Configuration"
+    log_step "Niri Rice Shell Configuration"
     
-    read -rp "  Would you like to install Gigi's Shell Configuration? [Y/n]: " choice
+    read -rp "  Would you like to install Niri Rice Shell Configuration? [Y/n]: " choice
     choice=${choice:-Y}
     if [[ ! "$choice" =~ ^[Yy]$ ]]; then
-        log_info "Gigi's Shell Configuration skipped by user choice."
+        log_info "Niri Rice Shell Configuration skipped by user choice."
         return
     fi
 
@@ -762,7 +795,7 @@ phase_install_shell_config() {
     fi
 
     # 8. Complete Internal Operational Phase Log
-    log_success "Gigi's Shell Configuration pipeline successfully processed."
+    log_success "Niri Rice Shell Configuration pipeline successfully processed."
 }
 
 phase_signal_environments() {
@@ -879,7 +912,7 @@ run_orchestrated_installer() {
     echo -e "${GREEN}${BOLD}                    Installation Complete!                         ${NC}"
     echo -e "${GREEN}                                                                   ${NC}"
     echo -e "${GREEN}         Please log out and log back in to reload your profile.    ${NC}"
-    echo -e "${GREEN}                   Enjoy Gigi's Rice ðŸŒ¿                            ${NC}"
+    echo -e "${GREEN}                   Enjoy Niri Rice ðŸŒ¿                              ${NC}"
     echo -e "${GREEN}â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}\n"
 }
 
