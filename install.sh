@@ -91,6 +91,9 @@ readonly DEFAULT_APP_ORDER=(
     "obsidian"
     "spotify"
     "spicetify"
+    "polkit-gnome"
+    "qt6ct"
+    "bibata-cursor-theme"
 )
 
 declare -A DEFAULT_APP_BINARY_MAP=(
@@ -101,6 +104,9 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["obsidian"]="obsidian"
     ["spotify"]="spotify"
     ["spicetify"]="spicetify"
+    ["polkit-gnome"]="polkit-gnome"
+    ["qt6ct"]="qt6ct"
+    ["bibata-cursor-theme"]="bibata-cursor-theme"
 )
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
@@ -111,6 +117,9 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["obsidian"]="obsidian"
     ["spotify"]="spotify"
     ["spicetify"]="spicetify-cli"
+    ["polkit-gnome"]="polkit-gnome"
+    ["qt6ct"]="qt6ct"
+    ["bibata-cursor-theme"]="bibata-cursor-theme"
 )
 
 # --- Runtime Analytical State Trackers ---
@@ -897,6 +906,7 @@ run_orchestrated_installer() {
     phase_system_refresh
     phase_inspect_dependencies
     phase_resolve_dependencies
+    phase_check_noctalia_version
     phase_install_default_apps
     phase_deploy_brave_flags
     phase_apply_spicetify
@@ -953,6 +963,18 @@ main() {
             log_fail "Invalid menu choice selected."
             exit 1
             ;;
+    esac
+}
+
+phase_check_noctalia_version() {
+    if $DRY_RUN; then return; fi
+    local ver
+    ver=$(pacman -Q noctalia-shell 2>/dev/null)
+    if [ -z "$ver" ]; then return; fi
+    ver=${ver#* }
+    case "$ver" in
+        4.*) log_success "noctalia-shell version $ver matches the required 4.x line." ;;
+        *) log_warn "Installed noctalia-shell version ($ver) is not 4.x -- this rice targets v4.7.7 and may break on v5+. See README." ;;
     esac
 }
 

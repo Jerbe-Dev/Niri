@@ -17,7 +17,7 @@ binds {
 
   // Apps // 
   Super+T hotkey-overlay-title="Open a Terminal: kitty" { spawn "kitty"; }
-  Super+B hotkey-overlay-title="Open a Browser: Brave" { spawn "brave-browser"; }
+  Super+B hotkey-overlay-title="Open a Browser: Brave" { spawn "brave"; }
   Super+E hotkey-overlay-title="Open a File Manager" { spawn "nautilus"; }
   Super+M hotkey-overlay-title="Open a Media Player" {spawn "spotify"; }
   Super+O hotkey-overlay-title="Open a Notes App" { spawn "obsidian"; }

@@ -221,7 +221,7 @@ All keybinds will open this if not changed.
 
 | Category        | Application    |
 | --------------- | -------------- |
-| 🌐 Browser      | Helium Browser |
+| 🌐 Browser      | Brave |
 | 💻 Terminal     | Kitty          |
 | 📝 Code Editor  | VSCodium       |
 | 📖 Notes        | Obsidian       |
