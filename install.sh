@@ -20,7 +20,7 @@ readonly START_TIME
 # --- Immutable Global System Constants ---
 readonly VERSION="3.0.0"
 readonly AUTHOR="Jerbe"
-readonly REPO_URL="https://github.com/Jerbe-Dev/Niri"
+# Repository URL retained for documentation/reference purposes.
 readonly LOG_DIR="$HOME/.cache/niri-rice"
 readonly LOG_FILE="$LOG_DIR/install.log"
 TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
@@ -592,7 +592,7 @@ phase_execute_backup() {
             log_success "Saved backup copy of: ~/.config/$mod"
         else
             log_fail "Failed to copy backup configurations for module component target: $mod"
-            FAILED_BACKUPS+=("~/.config/$mod")
+            FAILED_BACKUPS+=("$HOME/.config/$mod")
         fi
     done
 
@@ -611,7 +611,7 @@ phase_execute_backup() {
     local extra
     for extra in "${extra_paths[@]}"; do
         if [ -e "$extra" ]; then
-            local relative="${extra#$HOME/}"
+            local relative="${extra#"$HOME"/}"
             local destination="$BACKUP_DIR/$relative"
 
             mkdir -p "$(dirname "$destination")"
@@ -620,7 +620,7 @@ phase_execute_backup() {
                 log_success "Saved backup copy of: ~/$relative"
             else
                 log_fail "Failed to back up: ~/$relative"
-                FAILED_BACKUPS+=("~/$relative")
+                FAILED_BACKUPS+=("$HOME/$relative")
             fi
         fi
     done
@@ -984,7 +984,7 @@ execute_restore_operation() {
     local parent
 
     while IFS= read -r -d '' item; do
-        relative="${item#$target_dir/}"
+        relative="${item#"$target_dir"/}"
         destination="$HOME/$relative"
         parent="$(dirname "$destination")"
 
