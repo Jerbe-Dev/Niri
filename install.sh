@@ -614,7 +614,11 @@ phase_execute_backup() {
             local relative="${extra#"$HOME"/}"
             local destination="$BACKUP_DIR/$relative"
 
-            mkdir -p "$(dirname "$destination")"
+            if ! mkdir -p "$(dirname "$destination")" 2>>"$LOG_FILE"; then
+                log_fail "Failed to create backup directory: $(dirname "$destination")"
+                FAILED_BACKUPS+=("$destination")
+                continue
+            fi
 
             if cp -a "$extra" "$destination" 2>>"$LOG_FILE"; then
                 log_success "Saved backup copy of: ~/$relative"
