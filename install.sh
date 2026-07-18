@@ -638,7 +638,10 @@ phase_deploy_configs() {
     mapfile -t modules < <(get_discovered_modules)
     
     if [ ! -d "$HOME/.config" ] && ! $DRY_RUN; then
-        mkdir -p "$HOME/.config" 2>>"$LOG_FILE"
+        if ! mkdir -p "$HOME/.config" 2>>"$LOG_FILE"; then
+            log_fail "Failed to create ~/.config directory."
+            return 1
+        fi
     fi
 
     local mod
