@@ -71,14 +71,46 @@ declare -A PACKAGE_MAP=(
     ["mpv"]="mpv"
     ["mpd"]="mpd"
     ["niri"]="niri"
-    ["noctalia"]="noctalia-shell"
+    ["noctalia"]="noctalia-git"
     ["rmpc"]="rmpc"
     ["yazi"]="yazi"
 )
 
+# --- Default Applications ---
+# These are the apps from the README's "Default Applications" table plus
+# cliphist (needed by Noctalia's clipboard history keybind). They aren't
+# tied to a configs/<name> folder, so get_discovered_modules never picks
+# them up. Previously that meant they were documented but never installed.
+readonly DEFAULT_APP_ORDER=(
+    "cliphist"
+    "thunar"
+    "helium"
+    "vscodium"
+    "obsidian"
+    "spotify"
+)
+
+declare -A DEFAULT_APP_BINARY_MAP=(
+    ["cliphist"]="cliphist"
+    ["thunar"]="thunar"
+    ["helium"]="helium"
+    ["vscodium"]="codium"
+    ["obsidian"]="obsidian"
+    ["spotify"]="spotify"
+)
+
+declare -A DEFAULT_APP_PACKAGE_MAP=(
+    ["cliphist"]="cliphist"
+    ["thunar"]="thunar"
+    ["helium"]="helium-browser-bin"
+    ["vscodium"]="vscodium-bin"
+    ["obsidian"]="obsidian"
+    ["spotify"]="spotify"
+)
+
 # --- Runtime Analytical State Trackers ---
 CURRENT_STEP=0
-TOTAL_STEPS=9  # Incremented to 9 to account for the new Shell Configuration Phase
+TOTAL_STEPS=10  # Incremented to 10 to account for the Default Applications phase
 
 INSTALLED_CONFIGS=()
 SKIPPED_CONFIGS=()
@@ -107,7 +139,7 @@ log_to_file() {
 cleanup_handler() {
     local exit_code=$?
     if [ "$exit_code" -ne 0 ]; then
-        echo -e "\n\n${RED}${BOLD}❌ Script terminated unexpectedly. Detailed diagnostics written to: $LOG_FILE${NC}"
+        echo -e "\n\n${RED}${BOLD}âŒ Script terminated unexpectedly. Detailed diagnostics written to: $LOG_FILE${NC}"
         log_to_file "FATAL" "Execution process halted via shell trap error boundary."
     fi
     exit "$exit_code"
@@ -121,15 +153,15 @@ trap 'exit 130' SIGINT SIGTERM
 
 print_banner() {
     clear
-    echo -e "${PURPLE}╔═════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${PURPLE}║                                                                 ║${NC}"
-    echo -e "${PURPLE}║                 ${GREEN}🌿 Gigi's Rice Installer 🌿${PURPLE}                     ║${NC}"
-    echo -e "${PURPLE}║                                                                 ║${NC}"
-    echo -e "${PURPLE}║                  ${CYAN}Niri + Noctalia Configuration${PURPLE}                  ║${NC}"
-    echo -e "${PURPLE}║                                                                 ║${NC}"
-    echo -e "${PURPLE}╚═════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${PURPLE}â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—${NC}"
+    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
+    echo -e "${PURPLE}â•‘                 ${GREEN}ðŸŒ¿ Gigi's Rice Installer ðŸŒ¿${PURPLE}                     â•‘${NC}"
+    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
+    echo -e "${PURPLE}â•‘                  ${CYAN}Niri + Noctalia Configuration${PURPLE}                  â•‘${NC}"
+    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
+    echo -e "${PURPLE}â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}"
     echo -e "  ${BOLD}Version:${NC} ${YELLOW}$VERSION${NC} | ${BOLD}Author:${NC} ${YELLOW}$AUTHOR${NC} | ${BOLD}Log:${NC} ${BLUE}$LOG_FILE${NC}"
-    echo -e "───────────────────────────────────────────────────────────────────\n"
+    echo -e "â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n"
 }
 
 render_progress() {
@@ -140,10 +172,10 @@ render_progress() {
     
     printf "  Progress: ["
     if [ "$filled" -gt 0 ]; then
-        printf "%${filled}s" "" | tr ' ' '█'
+        printf "%${filled}s" "" | tr ' ' 'â–ˆ'
     fi
     if [ "$empty" -gt 0 ]; then
-        printf "%${empty}s" "" | tr ' ' '░'
+        printf "%${empty}s" "" | tr ' ' 'â–‘'
     fi
     printf "] %d%%\n\n" "$percent"
 }
@@ -153,17 +185,17 @@ log_step() {
     local title="$1"
     local pct=$(( (CURRENT_STEP * 100) / TOTAL_STEPS ))
     
-    echo -e "\n${BLUE}${BOLD}───────────────────────────────────────────────────────────────────${NC}"
+    echo -e "\n${BLUE}${BOLD}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
     echo -e "${BLUE}${BOLD}[$CURRENT_STEP/$TOTAL_STEPS] $title${NC}"
-    echo -e "${BLUE}${BOLD}───────────────────────────────────────────────────────────────────${NC}"
+    echo -e "${BLUE}${BOLD}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
     render_progress "$pct"
     log_to_file "STEP" "Started step: $title"
 }
 
-log_success() { echo -e "  ${GREEN}✔${NC} $1"; log_to_file "SUCCESS" "$1"; }
-log_fail()    { echo -e "  ${RED}❌${NC} $1"; log_to_file "ERROR" "$1"; }
-log_info()    { echo -e "  ${CYAN}ℹ${NC} $1"; log_to_file "INFO" "$1"; }
-log_warn()    { echo -e "  ${YELLOW}⚠${NC} $1"; log_to_file "WARN" "$1"; }
+log_success() { echo -e "  ${GREEN}âœ”${NC} $1"; log_to_file "SUCCESS" "$1"; }
+log_fail()    { echo -e "  ${RED}âŒ${NC} $1"; log_to_file "ERROR" "$1"; }
+log_info()    { echo -e "  ${CYAN}â„¹${NC} $1"; log_to_file "INFO" "$1"; }
+log_warn()    { echo -e "  ${YELLOW}âš ${NC} $1"; log_to_file "WARN" "$1"; }
 
 # ==============================================================================
 # 3. Structural Hardware & Repository Inspection Functions
@@ -363,6 +395,67 @@ phase_resolve_dependencies() {
                 fi
             fi
             log_fail "Failed to install required program package: $pkg"
+            FAILED_PACKAGES+=("$pkg")
+        fi
+    done
+}
+
+phase_install_default_apps() {
+    log_step "Installing Default Applications"
+    if $DRY_RUN; then log_info "Dry Run: Skipping default application deployment."; return; fi
+
+    if ! $HAS_INTERNET; then
+        log_warn "Network connection required to install default applications. Skipping."
+        return
+    fi
+
+    local missing_pkgs=()
+    local app
+    for app in "${DEFAULT_APP_ORDER[@]}"; do
+        local check_cmd="${DEFAULT_APP_BINARY_MAP[$app]:-"$app"}"
+        local target_pkg="${DEFAULT_APP_PACKAGE_MAP[$app]:-"$app"}"
+
+        if command -v "$check_cmd" &>/dev/null; then
+            log_success "Default application already present: $app ($target_pkg)"
+            ALREADY_PRESENT_PACKAGES+=("$target_pkg")
+        else
+            missing_pkgs+=("$target_pkg")
+        fi
+    done
+
+    if [ ${#missing_pkgs[@]} -eq 0 ]; then
+        log_success "All default applications are already installed."
+        return
+    fi
+
+    echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
+    read -rp "  Install default applications? [Y/n]: " choice
+    choice=${choice:-Y}
+
+    if [[ ! "$choice" =~ ^[Yy]$ ]]; then
+        log_warn "Skipped default application installation. Keybindings referencing them will not work."
+        return
+    fi
+
+    local helper
+    helper=$(get_system_aur_helper)
+
+    local pkg
+    for pkg in "${missing_pkgs[@]}"; do
+        log_info "Installing package: $pkg"
+        if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+            log_success "Successfully installed native package: $pkg"
+            INSTALLED_PACKAGES+=("$pkg")
+        else
+            if [ -n "$helper" ]; then
+                log_info "Package not found natively. Retrying installation with AUR helper: $helper"
+                if "$helper" -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
+                    log_success "Successfully installed AUR package: $pkg"
+                    INSTALLED_PACKAGES+=("$pkg")
+                    continue
+                fi
+            fi
+            log_fail "Failed to install default application package: $pkg"
             FAILED_PACKAGES+=("$pkg")
         fi
     done
@@ -690,19 +783,19 @@ phase_compile_summary() {
     end_time=$(date +%s)
     local elapsed=$((end_time - START_TIME))
     
-    echo -e "  ${BOLD}✓ Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}✓ Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}✓ Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}✓ Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}✓ Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}✓ Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}âœ“ Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
     
     if [ -d "$BACKUP_DIR" ]; then
-        echo -e "  ${BOLD}✓ Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
+        echo -e "  ${BOLD}âœ“ Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
     fi
-    echo -e "  ${BOLD}✓ Diagnostic Log Location:${NC}  ${BLUE}$LOG_FILE${NC}"
-    echo -e "  ${BOLD}✓ Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
-    echo -e "${BLUE}───────────────────────────────────────────────────────────────────${NC}"
+    echo -e "  ${BOLD}âœ“ Diagnostic Log Location:${NC}  ${BLUE}$LOG_FILE${NC}"
+    echo -e "  ${BOLD}âœ“ Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
+    echo -e "${BLUE}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
 }
 
 # ==============================================================================
@@ -735,7 +828,7 @@ execute_restore_operation() {
         echo -e "  ${GREEN}[$((i+1))]${NC} $(basename "${backups[$i]}")"
     done
     echo -e "  ${RED}[c]${NC} Cancel"
-    echo -e "${BLUE}───────────────────────────────────────────────────────────────────${NC}"
+    echo -e "${BLUE}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
     
     read -rp "Select a backup archive index to restore: " choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -le "${#backups[@]}" ] && [ "$choice" -gt 0 ]; then
@@ -775,18 +868,19 @@ run_orchestrated_installer() {
     phase_system_refresh
     phase_inspect_dependencies
     phase_resolve_dependencies
+    phase_install_default_apps
     phase_execute_backup
     phase_deploy_configs "$interactive"
     phase_install_shell_config
     phase_signal_environments
     phase_compile_summary
     
-    echo -e "\n${GREEN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "\n${GREEN}â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}"
     echo -e "${GREEN}${BOLD}                    Installation Complete!                         ${NC}"
     echo -e "${GREEN}                                                                   ${NC}"
     echo -e "${GREEN}         Please log out and log back in to reload your profile.    ${NC}"
-    echo -e "${GREEN}                   Enjoy Gigi's Rice 🌿                            ${NC}"
-    echo -e "${GREEN}═══════════════════════════════════════════════════════════════════${NC}\n"
+    echo -e "${GREEN}                   Enjoy Gigi's Rice ðŸŒ¿                            ${NC}"
+    echo -e "${GREEN}â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}\n"
 }
 
 main() {
@@ -800,7 +894,7 @@ main() {
     echo -e "  ${YELLOW}[3]${NC} Restore Backup"
     echo -e "  ${CYAN}[4]${NC} Dry Run"
     echo -e "  ${RED}[5]${NC} Exit"
-    echo -e "───────────────────────────────────────────────────────────────────${NC}"
+    echo -e "â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
     read -rp "Selection: " menu_choice
 
     case "$menu_choice" in
@@ -821,7 +915,7 @@ main() {
             run_orchestrated_installer false
             ;;
         5)
-            echo -e "\nExiting installation workspace. Have an excellent day! 🌿"
+            echo -e "\nExiting installation workspace. Have an excellent day! ðŸŒ¿"
             exit 0
             ;;
         *)
