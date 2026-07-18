@@ -164,7 +164,7 @@ cleanup_handler() {
         echo -e "\n\n${YELLOW}Installation cancelled by user.${NC}"
         log_to_file "INFO" "Execution cancelled by user (SIGINT/SIGTERM)."
     elif [ "$exit_code" -ne 0 ]; then
-        echo -e "\n\n${RED}${BOLD}âŒ Script terminated unexpectedly. Detailed diagnostics written to: $LOG_FILE${NC}"
+        echo -e "\n\n${RED}${BOLD}??? Script terminated unexpectedly. Detailed diagnostics written to: $LOG_FILE${NC}"
         log_to_file "FATAL" "Execution process halted via shell trap error boundary."
     fi
     exit "$exit_code"
@@ -178,15 +178,15 @@ trap 'exit 130' SIGINT SIGTERM
 
 print_banner() {
     clear
-    echo -e "${PURPLE}â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—${NC}"
-    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
-    echo -e "${PURPLE}â•‘                 ${GREEN}ðŸŒ¿ Niri Rice Installer ðŸŒ¿${PURPLE}                       â•‘${NC}"
-    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
-    echo -e "${PURPLE}â•‘                  ${CYAN}Niri + Noctalia Configuration${PURPLE}                  â•‘${NC}"
-    echo -e "${PURPLE}â•‘                                                                 â•‘${NC}"
-    echo -e "${PURPLE}â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}"
+    echo -e "${PURPLE}-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?+${NC}"
+    echo -e "${PURPLE}|                                                                 |${NC}"
+    echo -e "${PURPLE}|                 ${GREEN}[Niri] Niri Rice Installer [Niri]${PURPLE}                       |${NC}"
+    echo -e "${PURPLE}|                                                                 |${NC}"
+    echo -e "${PURPLE}|                  ${CYAN}Niri + Noctalia Configuration${PURPLE}                  |${NC}"
+    echo -e "${PURPLE}|                                                                 |${NC}"
+    echo -e "${PURPLE}+-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?${NC}"
     echo -e "  ${BOLD}Version:${NC} ${YELLOW}$VERSION${NC} | ${BOLD}Author:${NC} ${YELLOW}$AUTHOR${NC} | ${BOLD}Log:${NC} ${BLUE}$LOG_FILE${NC}"
-    echo -e "â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n"
+    echo -e "-------------------------------------------------------------------\n"
 }
 
 render_progress() {
@@ -197,10 +197,10 @@ render_progress() {
     
     printf "  Progress: ["
     if [ "$filled" -gt 0 ]; then
-        printf "%${filled}s" "" | tr ' ' 'â–ˆ'
+        printf "%${filled}s" "" | tr ' ' '#'
     fi
     if [ "$empty" -gt 0 ]; then
-        printf "%${empty}s" "" | tr ' ' 'â–‘'
+        printf "%${empty}s" "" | tr ' ' ' '
     fi
     printf "] %d%%\n\n" "$percent"
 }
@@ -210,17 +210,17 @@ log_step() {
     local title="$1"
     local pct=$(( (CURRENT_STEP * 100) / TOTAL_STEPS ))
     
-    echo -e "\n${BLUE}${BOLD}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
+    echo -e "\n${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
     echo -e "${BLUE}${BOLD}[$CURRENT_STEP/$TOTAL_STEPS] $title${NC}"
-    echo -e "${BLUE}${BOLD}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
+    echo -e "${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
     render_progress "$pct"
     log_to_file "STEP" "Started step: $title"
 }
 
-log_success() { echo -e "  ${GREEN}âœ”${NC} $1"; log_to_file "SUCCESS" "$1"; }
-log_fail()    { echo -e "  ${RED}âŒ${NC} $1"; log_to_file "ERROR" "$1"; }
-log_info()    { echo -e "  ${CYAN}â„¹${NC} $1"; log_to_file "INFO" "$1"; }
-log_warn()    { echo -e "  ${YELLOW}âš  ${NC} $1"; log_to_file "WARN" "$1"; }
+log_success() { echo -e "  ${GREEN}[OK]${NC} $1"; log_to_file "SUCCESS" "$1"; }
+log_fail()    { echo -e "  ${RED}???${NC} $1"; log_to_file "ERROR" "$1"; }
+log_info()    { echo -e "  ${CYAN}[INFO]${NC} $1"; log_to_file "INFO" "$1"; }
+log_warn()    { echo -e "  ${YELLOW}[WARN]  ${NC} $1"; log_to_file "WARN" "$1"; }
 
 # ==============================================================================
 # 3. Structural Hardware & Repository Inspection Functions
@@ -883,19 +883,19 @@ phase_compile_summary() {
     end_time=$(date +%s)
     local elapsed=$((end_time - START_TIME))
     
-    echo -e "  ${BOLD}âœ“ Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}âœ“ Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}âœ“ Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}âœ“ Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}âœ“ Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}âœ“ Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
     
     if [ -d "$BACKUP_DIR" ]; then
-        echo -e "  ${BOLD}âœ“ Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
+        echo -e "  ${BOLD}* Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
     fi
-    echo -e "  ${BOLD}âœ“ Diagnostic Log Location:${NC}  ${BLUE}$LOG_FILE${NC}"
-    echo -e "  ${BOLD}âœ“ Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
-    echo -e "${BLUE}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
+    echo -e "  ${BOLD}* Diagnostic Log Location:${NC}  ${BLUE}$LOG_FILE${NC}"
+    echo -e "  ${BOLD}* Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
+    echo -e "${BLUE}-------------------------------------------------------------------${NC}"
 }
 
 # ==============================================================================
@@ -928,7 +928,7 @@ execute_restore_operation() {
         echo -e "  ${GREEN}[$((i+1))]${NC} $(basename "${backups[$i]}")"
     done
     echo -e "  ${RED}[c]${NC} Cancel"
-    echo -e "${BLUE}â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
+    echo -e "${BLUE}-------------------------------------------------------------------${NC}"
     
     read -rp "Select a backup archive index to restore: " choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -le "${#backups[@]}" ] && [ "$choice" -gt 0 ]; then
@@ -1000,12 +1000,12 @@ run_orchestrated_installer() {
     phase_signal_environments
     phase_compile_summary
     
-    echo -e "\n${GREEN}â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}"
+    echo -e "\n${GREEN}-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?${NC}"
     echo -e "${GREEN}${BOLD}                    Installation Complete!                         ${NC}"
     echo -e "${GREEN}                                                                   ${NC}"
     echo -e "${GREEN}         Please log out and log back in to reload your profile.    ${NC}"
-    echo -e "${GREEN}                   Enjoy Niri Rice ðŸŒ¿                              ${NC}"
-    echo -e "${GREEN}â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•${NC}\n"
+    echo -e "${GREEN}                   Enjoy Niri Rice [Niri]                              ${NC}"
+    echo -e "${GREEN}-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?${NC}\n"
 }
 
 main() {
@@ -1019,7 +1019,7 @@ main() {
     echo -e "  ${YELLOW}[3]${NC} Restore Backup"
     echo -e "  ${CYAN}[4]${NC} Dry Run"
     echo -e "  ${RED}[5]${NC} Exit"
-    echo -e "â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€${NC}"
+    echo -e "-------------------------------------------------------------------${NC}"
     read -rp "Selection: " menu_choice
 
     case "$menu_choice" in
@@ -1040,7 +1040,7 @@ main() {
             run_orchestrated_installer false
             ;;
         5)
-            echo -e "\nExiting installation workspace. Have an excellent day! ðŸŒ¿"
+            echo -e "\nExiting installation workspace. Have an excellent day! [Niri]"
             exit 0
             ;;
         *)
