@@ -898,6 +898,8 @@ run_orchestrated_installer() {
     phase_inspect_dependencies
     phase_resolve_dependencies
     phase_install_default_apps
+    phase_deploy_brave_flags
+    phase_apply_spicetify
     phase_execute_backup
     phase_deploy_configs "$interactive"
     phase_install_shell_config
@@ -952,6 +954,53 @@ main() {
             exit 1
             ;;
     esac
+}
+
+phase_deploy_brave_flags() {
+    if [ ! -f "configs/brave-flags.conf" ]; then
+        return
+    fi
+    if $DRY_RUN; then
+        log_info "Dry Run: Would deploy ~/.config/brave-flags.conf for Brave Wayland support"
+        return
+    fi
+    mkdir -p "$HOME/.config" 2>>"$LOG_FILE"
+    if cp -f "configs/brave-flags.conf" "$HOME/.config/brave-flags.conf" 2>>"$LOG_FILE"; then
+        log_success "Deployed Brave Wayland launch flags: ~/.config/brave-flags.conf"
+    else
+        log_warn "Failed to deploy ~/.config/brave-flags.conf"
+    fi
+}
+
+phase_apply_spicetify() {
+    if ! command -v spotify &>/dev/null || ! command -v spicetify &>/dev/null; then
+        return
+    fi
+    if $DRY_RUN; then
+        log_info "Dry Run: Would apply Spicetify theme to Spotify."
+        return
+    fi
+
+    if [ ! -f "$HOME/.config/spicetify/config-xpui.ini" ]; then
+        spicetify &>>"$LOG_FILE" || true
+    fi
+
+    local cfg="$HOME/.config/spicetify/config-xpui.ini"
+    local spotify_dir=""
+    if [ -f "$cfg" ]; then
+        spotify_dir=$(grep -oP '^\s*spotify_path\s*=\s*\K.*' "$cfg" 2>/dev/null | tr -d '\r')
+    fi
+
+    if [ -n "$spotify_dir" ] && [ -d "$spotify_dir" ]; then
+        sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"
+        [ -d "$spotify_dir/Apps" ] && sudo chmod a+wr "$spotify_dir/Apps" -R 2>>"$LOG_FILE"
+    fi
+
+    if spicetify backup apply &>>"$LOG_FILE"; then
+        log_success "Applied Spicetify theme to Spotify."
+    else
+        log_warn "Could not apply Spicetify automatically. Launch Spotify once, log in, close it, then run: spicetify backup apply"
+    fi
 }
 
 main

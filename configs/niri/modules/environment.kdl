@@ -6,6 +6,7 @@ environment {
   XCURSOR_THEME "Bibata-Modern-Classic"   // Make sure you have this installed.
   XCURSOR_SIZE "24"
   GTK_CURSOR_THEME "Bibata-Modern-Classic"
+  ELECTRON_OZONE_PLATFORM_HINT "auto"
 }
 
 cursor {
