@@ -553,6 +553,34 @@ phase_execute_backup() {
             log_fail "Failed to copy backup configurations for module component target: $mod"
         fi
     done
+
+    # Back up additional files and directories modified by the installer.
+    local extra_paths=(
+        "$HOME/.config/brave-flags.conf"
+        "$HOME/.zshrc"
+        "$HOME/.p10k.zsh"
+        "$HOME/Pictures/Wallpapers"
+        "$HOME/.local/share/fonts"
+        "$HOME/.local/share/themes"
+        "$HOME/.local/share/icons"
+        "$HOME/.local/bin"
+    )
+
+    local extra
+    for extra in "${extra_paths[@]}"; do
+        if [ -e "$extra" ]; then
+            local relative="${extra#$HOME/}"
+            local destination="$BACKUP_DIR/$relative"
+
+            mkdir -p "$(dirname "$destination")"
+
+            if cp -a "$extra" "$destination" 2>>"$LOG_FILE"; then
+                log_success "Saved backup copy of: ~/$relative"
+            else
+                log_fail "Failed to back up: ~/$relative"
+            fi
+        fi
+    done
 }
 
 phase_deploy_configs() {
