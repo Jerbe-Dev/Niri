@@ -87,6 +87,8 @@ declare -A PACKAGE_MAP=(
 # are kept in the list.
 readonly DEFAULT_APP_ORDER=(
     "cliphist"
+    "playerctl"
+    "brightnessctl"
     "nautilus"
     "brave"
     "vscodium"
