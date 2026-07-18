@@ -1000,12 +1000,18 @@ run_orchestrated_installer() {
     phase_signal_environments
     phase_compile_summary
     
-    echo -e "\n${GREEN}-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?${NC}"
-    echo -e "${GREEN}${BOLD}                    Installation Complete!                         ${NC}"
-    echo -e "${GREEN}                                                                   ${NC}"
-    echo -e "${GREEN}         Please log out and log back in to reload your profile.    ${NC}"
-    echo -e "${GREEN}                   Enjoy Niri Rice [Niri]                              ${NC}"
-    echo -e "${GREEN}-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?-?${NC}\n"
+    echo
+
+    if [ ${#FAILED_PACKAGES[@]} -gt 0 ] || [ ${#FAILED_CONFIGS[@]} -gt 0 ]; then
+        echo -e "${RED}${BOLD}        Installation Completed With Errors        ${NC}"
+        echo -e "${YELLOW}   Review the failed packages/configurations above. ${NC}"
+    else
+        echo -e "${GREEN}${BOLD}        Installation Complete!                    ${NC}"
+        echo -e "${GREEN}   Please log out and back in to reload your profile.${NC}"
+        echo -e "${GREEN}                 Enjoy Niri Rice!                 ${NC}"
+    fi
+
+    echo
 }
 
 main() {
