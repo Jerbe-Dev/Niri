@@ -659,7 +659,7 @@ phase_install_shell_config() {
     if [[ "${SHELL:-}" != *zsh ]]; then
         log_info "Configuring default login shell profile path context target..."
         # Resolved SC2024: Redirect output properly with standard user permissions inside subshell or using tee
-        if chsh -s "$target_shell" "$USER" >>"$LOG_FILE" 2>&1; then
+        if chsh -s "$target_shell" "$USER"; then
             log_success "User default login workspace shell updated to: $target_shell"
         else
             log_warn "Failed to execute default shell change command automatically."
