@@ -138,6 +138,7 @@ INSTALLED_CONFIGS=()
 SKIPPED_CONFIGS=()
 FAILED_CONFIGS=()
 FAILED_BACKUPS=()
+FAILED_ASSETS=()
 INSTALLED_PACKAGES=()
 ALREADY_PRESENT_PACKAGES=()
 FAILED_PACKAGES=()
@@ -675,6 +676,7 @@ phase_deploy_configs() {
                         log_success "Asset deployment complete: $asset -> $dest"
                     else
                         log_fail "Failed to install asset files for: $asset"
+                        FAILED_ASSETS+=("$asset")
                     fi
                 else
                     log_info "Dry Run: Would deploy additional components from $asset -> $dest"
