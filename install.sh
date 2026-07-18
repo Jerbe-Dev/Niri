@@ -71,7 +71,7 @@ declare -A PACKAGE_MAP=(
     ["mpv"]="mpv"
     ["mpd"]="mpd"
     ["niri"]="niri"
-    ["noctalia"]="noctalia-git"
+    ["noctalia"]="noctalia-shell"
     ["rmpc"]="rmpc"
     ["yazi"]="yazi"
 )
