@@ -1218,14 +1218,6 @@ phase_configure_login_manager() {
     local zprofile="$HOME/.zprofile"
     local tty_marker="# Niri Rice TTY Autostart"
 
-    if [ -f "$zprofile" ] && grep -qF "$tty_marker" "$zprofile"; then
-        if sed -i '/^# Niri Rice TTY Autostart$/,/^fi$/d' "$zprofile"; then
-            log_success "Removed legacy TTY autostart block from ~/.zprofile."
-        else
-            log_warn "Could not remove legacy TTY autostart block."
-        fi
-    fi
-
     sudo mkdir -p /etc/greetd || return 1
 
     if ! sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
@@ -1276,6 +1268,14 @@ EOF
     else
         log_fail "Failed to enable greetd.service."
         return 1
+    fi
+
+    if [ -f "$zprofile" ] && grep -qF "$tty_marker" "$zprofile"; then
+        if sed -i '/^# Niri Rice TTY Autostart$/,/^fi$/d' "$zprofile"; then
+            log_success "Removed legacy TTY autostart block after greetd was enabled."
+        else
+            log_warn "Could not remove legacy TTY autostart block."
+        fi
     fi
 
     log_success "greetd + ReGreet configuration completed."
