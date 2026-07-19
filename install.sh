@@ -1029,7 +1029,7 @@ phase_configure_bluetooth_resume() {
                 return 1
             fi
         else
-            if { printf "\n[Policy]\nAutoEnable=true\n"; } | sudo tee -a "$conf" >>"$LOG_FILE" 2>&1; then
+            if { printf "\n[Policy]\nAutoEnable=true\n"; } | sudo tee -a "$conf" >/dev/null 2>>"$LOG_FILE"; then
                 log_success "Appended AutoEnable=true to $conf"
             else
                 log_fail "Failed to update $conf"
@@ -1345,8 +1345,7 @@ phase_configure_audio() {
         return 1
     fi
 
-    local attempt
-    for attempt in {1..10}; do
+    for _ in {1..10}; do
         if wpctl status &>/dev/null; then
             break
         fi
