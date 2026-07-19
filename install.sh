@@ -1474,6 +1474,11 @@ phase_apply_spicetify() {
         return 1
     fi
 
+    if ! spicetify backup &>>"$LOG_FILE"; then
+        log_fail "Spicetify backup could not be created."
+        return 1
+    fi
+
     local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
 
     if [ ! -d "$marketplace_dir" ]; then
@@ -1502,11 +1507,6 @@ phase_apply_spicetify() {
     fi
 
     log_success "Marketplace registered as a Spicetify custom app."
-
-    if ! spicetify backup &>>"$LOG_FILE"; then
-        log_fail "Spicetify backup could not be created."
-        return 1
-    fi
 
     log_info "Refreshing Spotify client resources before applying Spicetify..."
 
