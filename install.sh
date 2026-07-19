@@ -1472,8 +1472,8 @@ phase_apply_spicetify() {
     log_success "Spicetify Marketplace files verified."
 
     if ! spicetify config custom_apps marketplace &>>"$LOG_FILE"; then
-        log_warn "Could not register Marketplace custom app."
-        return 0
+        log_fail "Could not register Marketplace custom app."
+        return 1
     fi
 
     log_success "Marketplace registered as a Spicetify custom app."
