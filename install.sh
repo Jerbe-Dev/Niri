@@ -1268,10 +1268,11 @@ EOF
 
     log_success "Niri Wayland session is available for ReGreet."
 
-    if sudo systemctl enable greetd.service 2>>"$LOG_FILE"; then
-        log_success "Enabled greetd graphical login manager."
+    if sudo systemctl enable greetd.service 2>>"$LOG_FILE" &&
+       sudo systemctl is-enabled --quiet greetd.service 2>>"$LOG_FILE"; then
+        log_success "Enabled and verified greetd graphical login manager."
     else
-        log_fail "Failed to enable greetd.service."
+        log_fail "Failed to enable or verify greetd.service."
         return 1
     fi
 
