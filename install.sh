@@ -87,6 +87,14 @@ readonly DEFAULT_APP_ORDER=(
     "polkit-gnome"
     "qt6ct"
     "bibata-cursor-theme"
+    "greetd"
+    "greetd-regreet"
+    "pipewire"
+    "pipewire-pulse"
+    "wireplumber"
+    "bluez"
+    "bluez-utils"
+    "pavucontrol"
 )
 
 declare -A DEFAULT_APP_BINARY_MAP=(
@@ -102,6 +110,14 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
+    ["greetd"]="greetd"
+    ["greetd-regreet"]="regreet"
+    ["pipewire"]="pipewire"
+    ["pipewire-pulse"]="pipewire-pulse"
+    ["wireplumber"]="wireplumber"
+    ["bluez"]="bluetoothctl"
+    ["bluez-utils"]="bluetoothctl"
+    ["pavucontrol"]="pavucontrol"
 )
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
@@ -117,6 +133,14 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
+    ["greetd"]="greetd"
+    ["greetd-regreet"]="greetd-regreet"
+    ["pipewire"]="pipewire"
+    ["pipewire-pulse"]="pipewire-pulse"
+    ["wireplumber"]="wireplumber"
+    ["bluez"]="bluez"
+    ["bluez-utils"]="bluez-utils"
+    ["pavucontrol"]="pavucontrol"
 )
 
 # --- State Trackers ---
@@ -995,7 +1019,7 @@ phase_configure_bluetooth_resume() {
 
     local hook="/usr/lib/systemd/system-sleep/bluetooth-resume.sh"
     local hook_content
-    hook_content=$(printf "#!/bin/sh\ncase \$1 in\n  post)\n    rfkill unblock bluetooth\n    systemctl restart bluetooth\n    ;;\nesac\n")
+    hook_content=$(printf "#!/bin/sh\ncase \$1 in\n  post)\n    sleep 3\n    rfkill unblock bluetooth\n    systemctl start bluetooth\n    bluetoothctl power on >/dev/null 2>&1 || true\n    ;;\nesac\n")
     if printf "%s\n" "$hook_content" | sudo tee "$hook" > /dev/null; then
         sudo chmod +x "$hook" 2>>"$LOG_FILE"
         log_success "Installed Bluetooth resume hook: $hook"
@@ -1170,6 +1194,102 @@ phase_check_noctalia_version() {
     esac
 }
 
+phase_configure_login_manager() {
+    log_step "Configuring Graphical Login Manager"
+
+    if $DRY_RUN; then
+        log_info "Dry Run: Would configure greetd + ReGreet."
+        return 0
+    fi
+
+    if ! command -v greetd &>/dev/null || ! command -v regreet &>/dev/null; then
+        log_warn "greetd or ReGreet is not installed."
+        return 0
+    fi
+
+    sudo mkdir -p /etc/greetd || return 1
+
+    sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
+[terminal]
+vt = 1
+
+[default_session]
+command = "regreet"
+user = "greeter"
+EOF
+
+    if sudo systemctl enable greetd.service 2>>"$LOG_FILE"; then
+        log_success "Enabled greetd graphical login manager."
+    else
+        log_fail "Failed to enable greetd.service."
+        return 1
+    fi
+
+    log_success "greetd + ReGreet configuration completed."
+    return 0
+}
+
+phase_configure_audio() {
+    log_step "Configuring PipeWire Audio"
+
+    if $DRY_RUN; then
+        log_info "Dry Run: Would enable PipeWire and WirePlumber user services."
+        return 0
+    fi
+
+    local services=(
+        pipewire.service
+        pipewire-pulse.service
+        wireplumber.service
+    )
+
+    local service
+    for service in "${services[@]}"; do
+        if systemctl --user enable --now "$service" 2>>"$LOG_FILE"; then
+            log_success "Audio service active: $service"
+        else
+            log_warn "Could not start user audio service: $service"
+        fi
+    done
+
+    if command -v wpctl &>/dev/null && wpctl status &>/dev/null; then
+        log_success "PipeWire audio session is responding."
+    else
+        log_warn "PipeWire installed, but audio session verification failed."
+    fi
+
+    return 0
+}
+
+phase_configure_bluetooth() {
+    log_step "Configuring Bluetooth"
+
+    if $DRY_RUN; then
+        log_info "Dry Run: Would enable Bluetooth service."
+        return 0
+    fi
+
+    if ! command -v bluetoothctl &>/dev/null; then
+        log_warn "bluetoothctl is unavailable. Skipping Bluetooth configuration."
+        return 0
+    fi
+
+    if sudo systemctl enable --now bluetooth.service 2>>"$LOG_FILE"; then
+        log_success "Bluetooth service enabled and started."
+    else
+        log_warn "Could not enable/start bluetooth.service."
+        return 0
+    fi
+
+    if bluetoothctl show &>/dev/null; then
+        log_success "Bluetooth controller is responding."
+    else
+        log_warn "Bluetooth service is running, but no controller responded."
+    fi
+
+    return 0
+}
+
 phase_deploy_brave_flags() {
     log_step "Deploying Brave Flags"
     if [ ! -f "$SCRIPT_DIR/configs/brave-flags.conf" ]; then
@@ -1191,40 +1311,96 @@ phase_deploy_brave_flags() {
 }
 
 phase_apply_spicetify() {
-    log_step "Applying Spicetify"
-    if ! command -v spotify &>/dev/null || ! command -v spicetify &>/dev/null; then
-        log_info "Spotify or Spicetify not installed. Skipping."
+    log_step "Configuring Spotify and Spicetify"
+
+    if ! command -v spotify &>/dev/null; then
+        log_info "Spotify is not installed. Skipping Spicetify configuration."
+        return 0
+    fi
+
+    if ! command -v spicetify &>/dev/null; then
+        log_info "Spicetify is not installed. Skipping Spotify customization."
         return 0
     fi
 
     if $DRY_RUN; then
-        log_info "Dry Run: Would apply Spicetify theme to Spotify."
+        log_info "Dry Run: Would configure Spicetify Marketplace and apply Spotify customization."
         return 0
     fi
 
-    local cfg="$HOME/.config/spicetify/config-xpui.ini"
     local spotify_dir=""
+    local cfg="$HOME/.config/spicetify/config-xpui.ini"
+
     if [ -f "$cfg" ]; then
         spotify_dir=$(grep -oP '^\s*spotify_path\s*=\s*\K.*' "$cfg" 2>/dev/null | tr -d '\r')
     fi
 
-    if [ -n "$spotify_dir" ] && [ -d "$spotify_dir" ]; then
-        sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"
-        [ -d "$spotify_dir/Apps" ] && sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"
+    if [ -z "$spotify_dir" ]; then
+        spotify_dir="/opt/spotify"
+    fi
+
+    if [ ! -d "$spotify_dir" ]; then
+        log_warn "Spotify installation directory not found: $spotify_dir"
+        log_warn "Open Spotify once, log in, close it, then rerun the installer."
+        return 0
+    fi
+
+    log_info "Preparing Spotify installation directory: $spotify_dir"
+
+    if ! sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
+        log_warn "Could not make Spotify installation writable."
+    fi
+
+    if [ -d "$spotify_dir/Apps" ]; then
+        sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE" || true
+    fi
+
+    # Initialize Spicetify configuration if necessary.
+    if ! spicetify config spotify_path "$spotify_dir" &>>"$LOG_FILE"; then
+        log_warn "Could not configure Spotify path for Spicetify."
+    fi
+
+    # Create a backup before modifying Spotify.
+    if spicetify backup &>>"$LOG_FILE"; then
+        log_success "Spotify backup created/verified."
+    else
+        log_warn "Spicetify backup could not be created."
     fi
 
     local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
+
     if [ ! -d "$marketplace_dir" ]; then
         log_info "Installing Spicetify Marketplace..."
-        curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh &>>"$LOG_FILE" || true
-        spicetify config custom_apps marketplace &>>"$LOG_FILE" || true
+
+        if curl -fsSL \
+            https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh \
+            | sh &>>"$LOG_FILE"; then
+            log_success "Spicetify Marketplace installer completed."
+        else
+            log_warn "Spicetify Marketplace installer failed."
+        fi
+    else
+        log_success "Spicetify Marketplace already exists."
+    fi
+
+    if [ -d "$marketplace_dir" ]; then
+        if spicetify config custom_apps marketplace &>>"$LOG_FILE"; then
+            log_success "Marketplace registered as a Spicetify custom app."
+        else
+            log_warn "Could not register Marketplace custom app."
+        fi
+    else
+        log_warn "Marketplace directory is missing; skipping Marketplace registration."
     fi
 
     if spicetify backup apply &>>"$LOG_FILE"; then
-        log_success "Applied Spicetify theme and Marketplace to Spotify."
+        log_success "Spicetify successfully applied to Spotify."
     else
-        log_warn "Could not apply Spicetify automatically. Launch Spotify once, log in, close it, then run: spicetify backup apply"
+        log_warn "Spicetify could not apply changes automatically."
+        log_warn "Spotify may need to be opened once before Spicetify can apply."
     fi
+
+    return 0
 }
 
 # ==============================================================================
@@ -1265,7 +1441,9 @@ run_orchestrated_installer() {
         return 1
     fi
 
-    phase_configure_tty_autostart
+    phase_configure_login_manager
+    phase_configure_audio
+    phase_configure_bluetooth
     phase_configure_bluetooth_resume
     phase_deploy_brave_flags
     phase_apply_spicetify
