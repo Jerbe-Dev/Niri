@@ -1323,8 +1323,8 @@ phase_configure_audio() {
     fi
 
     if ! command -v wpctl &>/dev/null; then
-        log_warn "wpctl is unavailable. Cannot verify the active audio session."
-        return 0
+        log_fail "wpctl is unavailable. Cannot verify the active audio session."
+        return 1
     fi
 
     local attempt
@@ -1336,8 +1336,8 @@ phase_configure_audio() {
     done
 
     if ! wpctl status &>/dev/null; then
-        log_warn "PipeWire audio session is not responding."
-        return 0
+        log_fail "PipeWire audio session is not responding."
+        return 1
     fi
 
     log_success "PipeWire audio session is responding."
