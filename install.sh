@@ -87,9 +87,8 @@ readonly DEFAULT_APP_ORDER=(
     "polkit-gnome"
     "qt6ct"
     "bibata-cursor-theme"
-    "greetd"
-    "greetd-regreet"
-    "cage"
+    "sddm"
+    "sddm-sugar-candy"
     "pipewire"
     "pipewire-pulse"
     "wireplumber"
@@ -112,9 +111,8 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
-    ["greetd"]="greetd"
-    ["greetd-regreet"]="regreet"
-    ["cage"]="cage"
+    ["sddm"]="sddm"
+    ["sddm-sugar-candy"]="sddm-sugar-candy"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -137,9 +135,8 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
-    ["greetd"]="greetd"
-    ["greetd-regreet"]="greetd-regreet"
-    ["cage"]="cage"
+    ["sddm"]="sddm"
+    ["sddm-sugar-candy"]="sddm-sugar-candy-git"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -529,7 +526,7 @@ phase_install_default_apps() {
         local installed=false
 
         case "$app" in
-            polkit-gnome|bibata-cursor-theme|greetd|greetd-regreet|cage|pipewire|pipewire-pulse|wireplumber|bluez|bluez-utils|pavucontrol|python)
+            polkit-gnome|bibata-cursor-theme|sddm|sddm-sugar-candy|pipewire|pipewire-pulse|wireplumber|bluez|bluez-utils|pavucontrol|python)
                 pacman -Qi "$target_pkg" &>/dev/null && installed=true
                 ;;
             *)
@@ -1225,87 +1222,29 @@ phase_configure_login_manager() {
     log_step "Configuring Graphical Login Manager"
 
     if $DRY_RUN; then
-        log_info "Dry Run: Would configure greetd + ReGreet."
+        log_info "Dry Run: Would configure SDDM with Sugar Candy."
         return 0
     fi
 
-    if ! command -v greetd &>/dev/null || ! command -v regreet &>/dev/null; then
-        log_warn "greetd or ReGreet is not installed."
-        log_warn "Keeping the existing TTY Niri autostart configuration unchanged."
-        return 0
-    fi
+    command -v sddm &>/dev/null || { log_fail "SDDM is not installed."; return 1; }
+    pacman -Qi sddm-sugar-candy-git &>/dev/null || { log_fail "Sugar Candy theme is not installed."; return 1; }
 
-    local zprofile="$HOME/.zprofile"
-    local tty_marker="# Niri Rice TTY Autostart"
-
-    if ! command -v cage &>/dev/null; then
-        log_fail "Cage is not installed; cannot configure ReGreet."
+    if [ ! -f /usr/share/wayland-sessions/niri.desktop ]; then
+        log_fail "Niri Wayland session is missing."
         return 1
     fi
 
-    sudo mkdir -p /etc/greetd || return 1
+    sudo systemctl enable sddm.service 2>>"$LOG_FILE" &&
+    sudo systemctl is-enabled --quiet sddm.service 2>>"$LOG_FILE" ||
+        { log_fail "Failed to enable or verify SDDM."; return 1; }
 
-    if ! sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
-[terminal]
-vt = 1
-
-[default_session]
-command = "dbus-run-session cage -s -- regreet"
-user = "greeter"
+    sudo mkdir -p /etc/sddm.conf.d || return 1
+    sudo tee /etc/sddm.conf.d/10-niri-rice.conf >/dev/null <<'EOF'
+[Theme]
+Current=sugar-candy
 EOF
-    then
-        log_fail "Failed to write /etc/greetd/config.toml."
-        return 1
-    fi
 
-    if [ ! -s /etc/greetd/config.toml ]; then
-        log_fail "greetd configuration was not written correctly."
-        return 1
-    fi
-
-    log_success "Verified /etc/greetd/config.toml was written."
-
-    if [ ! -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
-        log_fail "ReGreet theme synchronization script is missing or not executable."
-        return 1
-    fi
-
-    if ! "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ||
-       [ ! -f /etc/greetd/regreet.css ] ||
-       [ ! -f /etc/greetd/regreet.toml ]; then
-        log_fail "Could not generate and verify the ReGreet theme configuration."
-        return 1
-    fi
-
-    log_success "Synchronized and verified ReGreet theme with Noctalia colors."
-
-    local niri_session="/usr/share/wayland-sessions/niri.desktop"
-    if [ ! -f "$niri_session" ]; then
-        log_fail "Niri Wayland session file is missing: $niri_session"
-        log_fail "Cannot safely enable greetd because ReGreet cannot launch Niri."
-        return 1
-    fi
-
-    log_success "Niri Wayland session is available for ReGreet."
-
-    if sudo systemctl enable greetd.service 2>>"$LOG_FILE" &&
-       sudo systemctl is-enabled --quiet greetd.service 2>>"$LOG_FILE"; then
-        log_success "Enabled and verified greetd graphical login manager."
-    else
-        log_fail "Failed to enable or verify greetd.service."
-        return 1
-    fi
-
-    if [ -f "$zprofile" ] && grep -qF "$tty_marker" "$zprofile"; then
-        if sed -i '/^# Niri Rice TTY Autostart$/,/^fi$/d' "$zprofile"; then
-            log_success "Removed legacy TTY autostart block after greetd was enabled."
-        else
-            log_fail "Could not remove legacy TTY autostart block."
-            return 1
-        fi
-    fi
-
-    log_success "greetd + ReGreet configuration completed."
+    log_success "SDDM configured with Sugar Candy theme."
     return 0
 }
 
