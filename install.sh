@@ -1222,10 +1222,12 @@ user = "greeter"
 EOF
 
     if [ -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
-        if "$SCRIPT_DIR/scripts/sync-regreet-theme.sh"; then
-            log_success "Synchronized ReGreet theme with Noctalia colors."
+        if "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" &&
+           [ -f /etc/greetd/regreet.css ] &&
+           [ -f /etc/greetd/regreet.toml ]; then
+            log_success "Synchronized and verified ReGreet theme with Noctalia colors."
         else
-            log_warn "Could not synchronize ReGreet theme with Noctalia colors."
+            log_warn "Could not verify the generated ReGreet theme configuration."
         fi
     fi
 
