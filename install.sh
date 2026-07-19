@@ -1372,7 +1372,8 @@ phase_configure_bluetooth() {
     if bluetoothctl show &>/dev/null; then
         log_success "Bluetooth controller is responding."
     else
-        log_warn "Bluetooth service is running, but no controller responded."
+        log_fail "Bluetooth service is running, but no controller responded."
+        return 1
     fi
 
     return 0
