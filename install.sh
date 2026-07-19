@@ -1365,8 +1365,8 @@ phase_configure_bluetooth() {
     if sudo systemctl enable --now bluetooth.service 2>>"$LOG_FILE"; then
         log_success "Bluetooth service enabled and started."
     else
-        log_warn "Could not enable/start bluetooth.service."
-        return 0
+        log_fail "Could not enable/start bluetooth.service."
+        return 1
     fi
 
     if bluetoothctl show &>/dev/null; then
