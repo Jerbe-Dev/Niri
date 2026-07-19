@@ -775,7 +775,11 @@ phase_deploy_configs() {
             if [ -n "$dest" ]; then
                 log_info "Installing auxiliary asset profile: $asset"
                 if ! $DRY_RUN; then
-                    mkdir -p "$dest" 2>>"$LOG_FILE"
+                    if ! mkdir -p "$dest" 2>>"$LOG_FILE"; then
+                        log_fail "Failed to create asset destination: $dest"
+                        FAILED_ASSETS+=("$asset")
+                        continue
+                    fi
                     if cp -a "$asset"/. "$dest/" 2>>"$LOG_FILE"; then
                         log_success "Asset deployment complete: $asset -> $dest"
                     else
@@ -983,8 +987,8 @@ phase_configure_tty_autostart() {
     fi
 
     if ! command -v uwsm &>/dev/null; then
-        log_warn "uwsm is not installed. Skipping TTY autostart configuration."
-        return 0
+        log_fail "uwsm is not installed. Cannot configure TTY autostart."
+        return 1
     fi
 
     {
