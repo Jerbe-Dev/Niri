@@ -1436,7 +1436,7 @@ phase_apply_spicetify() {
     if [ ! -d "$spotify_dir" ]; then
         log_warn "Spotify installation directory not found: $spotify_dir"
         log_warn "Open Spotify once, log in, close it, then rerun the installer."
-        return 0
+        return 1
     fi
 
     log_info "Preparing Spotify installation directory: $spotify_dir"
@@ -1512,7 +1512,8 @@ phase_apply_spicetify() {
     if [[ "$custom_apps" == *marketplace* ]]; then
         log_success "Spicetify Marketplace registration verified."
     else
-        log_warn "Marketplace files exist, but registration could not be verified."
+        log_fail "Marketplace files exist, but registration could not be verified."
+        return 1
     fi
 
     return 0
