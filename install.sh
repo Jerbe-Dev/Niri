@@ -1244,18 +1244,45 @@ phase_configure_audio() {
     )
 
     local service
+    local failed=0
+
     for service in "${services[@]}"; do
         if systemctl --user enable --now "$service" 2>>"$LOG_FILE"; then
             log_success "Audio service active: $service"
         else
             log_warn "Could not start user audio service: $service"
+            failed=1
         fi
     done
 
-    if command -v wpctl &>/dev/null && wpctl status &>/dev/null; then
-        log_success "PipeWire audio session is responding."
+    if [ "$failed" -ne 0 ]; then
+        log_warn "One or more PipeWire audio services failed to start."
+    fi
+
+    if ! command -v wpctl &>/dev/null; then
+        log_warn "wpctl is unavailable. Cannot verify the active audio session."
+        return 0
+    fi
+
+    local attempt
+    for attempt in {1..10}; do
+        if wpctl status &>/dev/null; then
+            break
+        fi
+        sleep 1
+    done
+
+    if ! wpctl status &>/dev/null; then
+        log_warn "PipeWire audio session is not responding."
+        return 0
+    fi
+
+    log_success "PipeWire audio session is responding."
+
+    if wpctl get-volume @DEFAULT_AUDIO_SINK@ &>/dev/null; then
+        log_success "Default audio output sink is available."
     else
-        log_warn "PipeWire installed, but audio session verification failed."
+        log_warn "PipeWire is running, but no default audio output sink is available."
     fi
 
     return 0
