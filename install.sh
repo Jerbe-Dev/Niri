@@ -1234,9 +1234,18 @@ phase_configure_login_manager() {
         return 1
     fi
 
-    sudo systemctl enable sddm.service 2>>"$LOG_FILE" &&
-    sudo systemctl is-enabled --quiet sddm.service 2>>"$LOG_FILE" ||
-        { log_fail "Failed to enable or verify SDDM."; return 1; }
+    if ! sudo systemctl enable --force sddm.service 2>>"$LOG_FILE"; then
+        log_fail "Failed to enable SDDM."
+        log_fail "See diagnostic log: $LOG_FILE"
+        return 1
+    fi
+
+    if sudo systemctl is-enabled --quiet sddm.service 2>>"$LOG_FILE"; then
+        log_success "Enabled and verified SDDM graphical login manager."
+    else
+        log_fail "SDDM was enabled but could not be verified."
+        return 1
+    fi
 
     sudo mkdir -p /etc/sddm.conf.d || return 1
     sudo tee /etc/sddm.conf.d/10-niri-rice.conf >/dev/null <<'EOF'
