@@ -64,10 +64,19 @@ button:hover {{
 """)
 PYTHON
 
-if command -v sudo >/dev/null 2>&1 && [ -d /etc/greetd ]; then
-    sudo install -Dm644 "$OUT/regreet.css" /etc/greetd/regreet.css
+if ! command -v sudo >/dev/null 2>&1; then
+    printf 'sudo is required to install the ReGreet theme configuration.\n' >&2
+    exit 1
+fi
 
-    cat > "$OUT/regreet.toml" <<EOF
+if [ ! -d /etc/greetd ]; then
+    printf '/etc/greetd does not exist; greetd must be installed first.\n' >&2
+    exit 1
+fi
+
+sudo install -Dm644 "$OUT/regreet.css" /etc/greetd/regreet.css
+
+cat > "$OUT/regreet.toml" <<EOF
 [GTK]
 application_prefer_dark_theme = true
 cursor_theme_name = "Bibata-Modern-Classic"
@@ -77,5 +86,4 @@ reboot = ["systemctl", "reboot"]
 poweroff = ["systemctl", "poweroff"]
 EOF
 
-    sudo install -Dm644 "$OUT/regreet.toml" /etc/greetd/regreet.toml
-fi
+sudo install -Dm644 "$OUT/regreet.toml" /etc/greetd/regreet.toml
