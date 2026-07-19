@@ -523,7 +523,7 @@ phase_install_default_apps() {
         local installed=false
 
         case "$app" in
-            polkit-gnome|bibata-cursor-theme)
+            polkit-gnome|bibata-cursor-theme|greetd|greetd-regreet|cage|pipewire|pipewire-pulse|wireplumber|bluez|bluez-utils|pavucontrol|python)
                 pacman -Qi "$target_pkg" &>/dev/null && installed=true
                 ;;
             *)
