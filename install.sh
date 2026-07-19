@@ -365,7 +365,8 @@ phase_validate_env() {
     log_step "Validating Environment"
 
     if ! command -v niri &>/dev/null; then
-        log_warn "Niri window manager not found in local system bin paths."
+        log_fail "Niri window manager is not installed or unavailable."
+        return 1
     else
         log_success "Niri base environment verified."
     fi
@@ -373,7 +374,8 @@ phase_validate_env() {
     if is_dependency_installed "noctalia" "${BINARY_MAP[noctalia]}" "${PACKAGE_MAP[noctalia]}"; then
         log_success "Noctalia base environment verified."
     else
-        log_warn "Noctalia configuration shell interface not found."
+        log_fail "Noctalia shell is not installed or unavailable."
+        return 1
     fi
 }
 
@@ -502,6 +504,10 @@ phase_resolve_dependencies() {
         log_fail "Failed to install required program package: $pkg"
         FAILED_PACKAGES+=("$pkg")
     done
+
+    if [ ${#FAILED_PACKAGES[@]} -gt 0 ]; then
+        return 1
+    fi
 }
 
 phase_install_default_apps() {
@@ -950,7 +956,8 @@ phase_install_shell_config() {
         if chsh -s "$target_shell"; then
             log_success "User default login workspace shell updated to: $target_shell"
         else
-            log_warn "Failed to execute default shell change command automatically."
+            log_fail "Failed to change the default login shell to: $target_shell"
+            return 1
         fi
     else
         log_success "Zsh is already registered as the default workspace shell environment."
@@ -985,7 +992,10 @@ phase_configure_tty_autostart() {
         printf "if uwsm check may-start; then\n"
         printf "    exec uwsm start -- niri\n"
         printf "fi\n"
-    } >> "$zprofile"
+    } >> "$zprofile" || {
+        log_fail "Failed to update ~/.zprofile"
+        return 1
+    }
 
     log_success "Injected uwsm autostart block into ~/.zprofile"
 }
@@ -1037,7 +1047,10 @@ phase_configure_bluetooth_resume() {
         return 1
     fi
 
-    sudo systemctl restart bluetooth 2>>"$LOG_FILE" || true
+    if ! sudo systemctl restart bluetooth 2>>"$LOG_FILE"; then
+        log_fail "Failed to restart Bluetooth service."
+        return 1
+    fi
 }
 
 phase_signal_environments() {
