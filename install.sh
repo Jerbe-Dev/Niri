@@ -1362,8 +1362,8 @@ phase_configure_bluetooth() {
     fi
 
     if ! command -v bluetoothctl &>/dev/null; then
-        log_warn "bluetoothctl is unavailable. Skipping Bluetooth configuration."
-        return 0
+        log_fail "bluetoothctl is unavailable. Cannot configure Bluetooth."
+        return 1
     fi
 
     if sudo systemctl enable --now bluetooth.service 2>>"$LOG_FILE"; then
@@ -1399,7 +1399,8 @@ phase_deploy_brave_flags() {
     if cp -f "$SCRIPT_DIR/configs/brave-flags.conf" "$HOME/.config/brave-flags.conf" 2>>"$LOG_FILE"; then
         log_success "Deployed Brave Wayland launch flags: ~/.config/brave-flags.conf"
     else
-        log_warn "Failed to deploy ~/.config/brave-flags.conf"
+        log_fail "Failed to deploy ~/.config/brave-flags.conf"
+        return 1
     fi
 }
 
