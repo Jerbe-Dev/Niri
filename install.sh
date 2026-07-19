@@ -1437,7 +1437,8 @@ phase_apply_spicetify() {
     log_info "Preparing Spotify installation directory: $spotify_dir"
 
     if ! sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
-        log_warn "Could not make Spotify installation writable."
+        log_fail "Could not make Spotify installation writable."
+        return 1
     fi
 
     if [ -d "$spotify_dir/Apps" ]; then
@@ -1479,7 +1480,8 @@ phase_apply_spicetify() {
     log_success "Marketplace registered as a Spicetify custom app."
 
     if ! spicetify backup &>>"$LOG_FILE"; then
-        log_warn "Spicetify backup could not be created."
+        log_fail "Spicetify backup could not be created."
+        return 1
     fi
 
     log_info "Refreshing Spotify client resources before applying Spicetify..."
