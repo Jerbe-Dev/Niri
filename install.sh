@@ -1465,8 +1465,8 @@ phase_apply_spicetify() {
     fi
 
     if [ ! -d "$marketplace_dir" ]; then
-        log_warn "Marketplace directory is missing after installation."
-        return 0
+        log_fail "Marketplace directory is missing after installation."
+        return 1
     fi
 
     log_success "Spicetify Marketplace files verified."
