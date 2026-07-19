@@ -1208,6 +1208,17 @@ phase_configure_login_manager() {
         return 0
     fi
 
+    local zprofile="$HOME/.zprofile"
+    local tty_marker="# Niri Rice TTY Autostart"
+
+    if [ -f "$zprofile" ] && grep -qF "$tty_marker" "$zprofile"; then
+        if sed -i '/^# Niri Rice TTY Autostart$/,/^fi$/d' "$zprofile"; then
+            log_success "Removed legacy TTY autostart block from ~/.zprofile."
+        else
+            log_warn "Could not remove legacy TTY autostart block."
+        fi
+    fi
+
     if ! command -v greetd &>/dev/null || ! command -v regreet &>/dev/null; then
         log_warn "greetd or ReGreet is not installed."
         return 0
