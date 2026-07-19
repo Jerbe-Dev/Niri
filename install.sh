@@ -598,6 +598,7 @@ phase_execute_backup() {
 
     local extra_paths=(
         "$HOME/.config/brave-flags.conf"
+        "$HOME/.zprofile"
         "$HOME/.zshrc"
         "$HOME/.p10k.zsh"
         "$HOME/Pictures/Wallpapers"
