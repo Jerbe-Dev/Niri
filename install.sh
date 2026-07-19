@@ -89,6 +89,7 @@ readonly DEFAULT_APP_ORDER=(
     "bibata-cursor-theme"
     "greetd"
     "greetd-regreet"
+    "cage"
     "pipewire"
     "pipewire-pulse"
     "wireplumber"
@@ -112,6 +113,7 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["bibata-cursor-theme"]="bibata-cursor-theme"
     ["greetd"]="greetd"
     ["greetd-regreet"]="regreet"
+    ["cage"]="cage"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -135,6 +137,7 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["bibata-cursor-theme"]="bibata-cursor-theme"
     ["greetd"]="greetd"
     ["greetd-regreet"]="greetd-regreet"
+    ["cage"]="cage"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -1214,16 +1217,13 @@ phase_configure_login_manager() {
 vt = 1
 
 [default_session]
-command = "regreet"
+command = "cage -s -- regreet"
 user = "greeter"
 EOF
 
-    local niri_session="/usr/share/wayland-sessions/niri.desktop"
-    if [ ! -f "$niri_session" ]; then
-        log_warn "Niri Wayland session file is missing: $niri_session"
-        log_warn "ReGreet may not be able to launch Niri from the login screen."
-    else
-        log_success "Niri Wayland session is available for ReGreet."
+    if ! command -v cage &>/dev/null; then
+        log_warn "Cage is not installed; ReGreet cannot start its Wayland display."
+        return 1
     fi
 
     local niri_session="/usr/share/wayland-sessions/niri.desktop"
