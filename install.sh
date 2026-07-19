@@ -1447,7 +1447,10 @@ phase_apply_spicetify() {
     fi
 
     if [ -d "$spotify_dir/Apps" ]; then
-        sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE" || true
+        if ! sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
+            log_fail "Could not make Spotify Apps directory writable."
+            return 1
+        fi
     fi
 
     if ! spicetify config spotify_path "$spotify_dir" &>>"$LOG_FILE"; then
@@ -1496,9 +1499,9 @@ phase_apply_spicetify() {
     fi
 
     if ! spicetify backup apply &>>"$LOG_FILE"; then
-        log_warn "Spicetify could not apply changes automatically."
+        log_fail "Spicetify could not apply changes automatically."
         log_warn "Spotify may need to be opened once before Spicetify can apply."
-        return 0
+        return 1
     fi
 
     log_success "Spicetify successfully applied to Spotify."
