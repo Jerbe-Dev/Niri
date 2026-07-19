@@ -1258,6 +1258,59 @@ EOF
     return 0
 }
 
+phase_sync_noctalia_sddm() {
+    log_step "Linking Noctalia Theme Sync to SDDM Sugar Candy"
+
+    if $DRY_RUN; then
+        log_info "Dry Run: would link Sugar Candy theme.conf to Noctalia's generated file."
+        return 0
+    fi
+
+    local cache_dir="/var/cache/niri-rice"
+    local theme_conf_target="/usr/share/sddm/themes/sugar-candy/theme.conf"
+    local generated_conf="$cache_dir/theme.conf.user"
+    local generated_wallpaper="$cache_dir/wallpaper"
+
+    if ! sudo install -d -m 0755 -o "$USER" -g "$USER" "$cache_dir" 2>>"$LOG_FILE"; then
+        log_fail "Failed to create $cache_dir"
+        return 1
+    fi
+    log_success "Ensured $cache_dir exists and is writable by $USER."
+
+    if [ ! -f "$generated_conf" ]; then
+        printf '[General]\n' > "$generated_conf"
+        chmod 0644 "$generated_conf"
+    fi
+
+    if [ ! -f "$generated_wallpaper" ]; then
+        local seed
+        seed=$(find "$SCRIPT_DIR/wallpapers" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null | head -n1)
+        [ -n "$seed" ] && cp -- "$seed" "$generated_wallpaper" && chmod 0644 "$generated_wallpaper"
+    fi
+
+    if [ ! -d "$(dirname "$theme_conf_target")" ]; then
+        log_fail "Sugar Candy theme dir missing. Is sddm-sugar-candy-git installed?"
+        return 1
+    fi
+
+    if [ -e "$theme_conf_target" ] && [ ! -L "$theme_conf_target" ] && [ ! -e "${theme_conf_target}.dist" ]; then
+        sudo cp -a "$theme_conf_target" "${theme_conf_target}.dist" 2>>"$LOG_FILE" || log_warn "Could not back up original theme.conf"
+    fi
+
+    if ! sudo ln -sf "$generated_conf" "$theme_conf_target" 2>>"$LOG_FILE"; then
+        log_fail "Failed to symlink $theme_conf_target"
+        return 1
+    fi
+
+    if [ "$(readlink -f "$theme_conf_target")" = "$(readlink -f "$generated_conf")" ]; then
+        log_success "Sugar Candy now reads Noctalia-generated colors."
+    else
+        log_fail "Symlink verification failed"
+        return 1
+    fi
+    return 0
+}
+
 phase_configure_audio() {
     log_step "Configuring PipeWire Audio"
 
@@ -1518,6 +1571,7 @@ run_orchestrated_installer() {
     fi
 
     phase_configure_login_manager
+    phase_sync_noctalia_sddm
     phase_configure_audio
     phase_configure_bluetooth
     phase_configure_bluetooth_resume
