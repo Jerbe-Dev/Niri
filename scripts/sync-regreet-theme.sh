@@ -64,6 +64,9 @@ if command -v sudo >/dev/null 2>&1 && [ -d /etc/greetd ]; then
 application_prefer_dark_theme = true
 cursor_theme_name = "Bibata-Modern-Classic"
 
+[stylesheet]
+path = "/etc/greetd/regreet.css"
+
 [commands]
 reboot = ["systemctl", "reboot"]
 poweroff = ["systemctl", "poweroff"]
