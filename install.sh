@@ -151,7 +151,7 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
 
 # --- State Trackers ---
 CURRENT_STEP=0
-TOTAL_STEPS=14  # Verified: 12 execution phases + TTY autostart + Bluetooth resume fix
+TOTAL_STEPS=17  # 17 log_step phases in the current installer orchestration
 
 INSTALLED_CONFIGS=()
 SKIPPED_CONFIGS=()
