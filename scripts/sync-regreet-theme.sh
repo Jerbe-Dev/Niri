@@ -2,7 +2,8 @@
 set -euo pipefail
 
 COLORS="$HOME/.config/noctalia/colors.json"
-OUT="/tmp/niri-regreet-theme"
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/niri-regreet-theme.XXXXXX")
+trap 'rm -rf -- "$OUT"' EXIT
 
 if [ ! -f "$COLORS" ]; then
     printf 'Noctalia colors file not found: %s\n' "$COLORS" >&2
@@ -13,8 +14,6 @@ if ! command -v python >/dev/null 2>&1; then
     printf 'Python is required to generate the ReGreet theme.\n' >&2
     exit 1
 fi
-
-mkdir -p "$OUT"
 
 python - "$COLORS" "$OUT" <<'PYTHON'
 import json
