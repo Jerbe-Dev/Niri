@@ -7,6 +7,8 @@ readonly WALLPAPER_SOURCE="${NOCTALIA_WALLPAPER_PATH:-}"
 
 # Noctalia owns the current wallpaper. The SDDM cache is deliberately kept
 # outside $HOME so the greeter can read it before the user session starts.
+mkdir -p "$SYNC_DIR"
+
 if [[ -n "$WALLPAPER_SOURCE" && -f "$WALLPAPER_SOURCE" ]]; then
     tmp_wallpaper="${WALLPAPER_PATH}.tmp.$$"
     cp -- "$WALLPAPER_SOURCE" "$tmp_wallpaper"
