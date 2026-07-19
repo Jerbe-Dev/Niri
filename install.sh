@@ -121,7 +121,7 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
 
 # --- State Trackers ---
 CURRENT_STEP=0
-TOTAL_STEPS=12  # Verified: 12 actual execution phases
+TOTAL_STEPS=14  # Verified: 12 execution phases + TTY autostart + Bluetooth resume fix
 
 INSTALLED_CONFIGS=()
 SKIPPED_CONFIGS=()
@@ -184,7 +184,7 @@ render_progress() {
     local width=30
     local filled=$(( percent * width / 100 ))
     local empty=$(( width - filled ))
-    
+
     printf "  Progress: ["
     if [ "$filled" -gt 0 ]; then
         printf "%${filled}s" "" | tr ' ' '#'
@@ -199,7 +199,7 @@ log_step() {
     ((++CURRENT_STEP))
     local title="$1"
     local pct=$(( (CURRENT_STEP * 100) / TOTAL_STEPS ))
-    
+
     echo -e "\n${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
     echo -e "${BLUE}${BOLD}[$CURRENT_STEP/$TOTAL_STEPS] $title${NC}"
     echo -e "${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
@@ -267,13 +267,13 @@ probe_network() {
 get_discovered_modules() {
     local dynamic_modules=()
     local ordered_item
-    
+
     for ordered_item in "${PREFERRED_ORDER[@]}"; do
         if [ -d "$SCRIPT_DIR/configs/$ordered_item" ]; then
             dynamic_modules+=("$ordered_item")
         fi
     done
-    
+
     if [ -d "configs" ]; then
         local entry
         for entry in "$SCRIPT_DIR"/configs/*; do
@@ -281,21 +281,21 @@ get_discovered_modules() {
                 local base_entry="${entry##*/}"
                 local is_known=false
                 local known_item
-                
+
                 for known_item in "${dynamic_modules[@]}"; do
                     if [[ "$known_item" == "$base_entry" ]]; then
                         is_known=true
                         break
                     fi
                 done
-                
+
                 if ! $is_known; then
                     dynamic_modules+=("$base_entry")
                 fi
             fi
         done
     fi
-    
+
     if [ ${#dynamic_modules[@]} -gt 0 ]; then
         printf '%s\n' "${dynamic_modules[@]}"
     fi
@@ -333,7 +333,7 @@ is_dependency_installed() {
 
 phase_validate_env() {
     log_step "Validating Environment"
-    
+
     if ! command -v niri &>/dev/null; then
         log_warn "Niri window manager not found in local system bin paths."
     else
@@ -362,7 +362,7 @@ phase_system_refresh() {
         read -rp "  Run system package upgrade via pacman? [Y/n]: " choice
         choice=${choice:-Y}
     fi
-    
+
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         log_info "Running pacman system upgrade..."
         if sudo pacman -Syu; then
@@ -381,12 +381,12 @@ phase_inspect_dependencies() {
     log_step "Checking Installed Programs"
     local modules
     mapfile -t modules < <(get_discovered_modules)
-    
+
     local mod
     for mod in "${modules[@]}"; do
         local check_cmd="${BINARY_MAP[$mod]:-"$mod"}"
         local target_pkg="${PACKAGE_MAP[$mod]:-"$mod"}"
-        
+
         if is_dependency_installed "$mod" "$check_cmd" "$target_pkg"; then
             log_success "Package dependency met: $mod ($target_pkg)"
             ALREADY_PRESENT_PACKAGES+=("$target_pkg")
@@ -415,7 +415,7 @@ phase_resolve_dependencies() {
     for mod in "${modules[@]}"; do
         local check_cmd="${BINARY_MAP[$mod]:-"$mod"}"
         local target_pkg="${PACKAGE_MAP[$mod]:-"$mod"}"
-        
+
         if ! is_dependency_installed "$mod" "$check_cmd" "$target_pkg"; then
             missing_pkgs+=("$target_pkg")
             missing_mods+=("$mod")
@@ -428,7 +428,7 @@ phase_resolve_dependencies() {
     fi
 
     echo -e "  The following programs are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
-    
+
     local choice="Y"
     if $interactive; then
         read -rp "  Install missing programs? [Y/n]: " choice
@@ -447,7 +447,7 @@ phase_resolve_dependencies() {
     for ((i=0; i<${#missing_pkgs[@]}; i++)); do
         local pkg="${missing_pkgs[i]}"
         log_info "Installing package: $pkg"
-        
+
         if pacman -Si "$pkg" &>/dev/null; then
             if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
                 log_success "Successfully installed native package: $pkg"
@@ -515,7 +515,7 @@ phase_install_default_apps() {
     fi
 
     echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
-    
+
     local choice="Y"
     if $interactive; then
         read -rp "  Install default applications? [Y/n]: " choice
@@ -565,7 +565,7 @@ phase_execute_backup() {
 
     local modules
     mapfile -t modules < <(get_discovered_modules)
-    
+
     local extra_paths=(
         "$HOME/.config/brave-flags.conf"
         "$HOME/.zshrc"
@@ -578,7 +578,7 @@ phase_execute_backup() {
     )
 
     local has_something_to_backup=false
-    
+
     local mod
     for mod in "${modules[@]}"; do
         if [ -e "$HOME/.config/$mod" ]; then
@@ -654,10 +654,10 @@ phase_execute_backup() {
 phase_deploy_configs() {
     local interactive=$1
     log_step "Installing Configurations"
-    
+
     local modules
     mapfile -t modules < <(get_discovered_modules)
-    
+
     if [ ! -d "$HOME/.config" ] && ! $DRY_RUN; then
         if ! mkdir -p "$HOME/.config" 2>>"$LOG_FILE"; then
             log_fail "Failed to create ~/.config directory."
@@ -682,7 +682,7 @@ phase_deploy_configs() {
             else
                 local tmp_dest="$HOME/.config/.$mod.tmp.$TIMESTAMP"
                 local final_dest="$HOME/.config/$mod"
-                
+
                 rm -rf "$tmp_dest"
                 if cp -a "$SCRIPT_DIR/configs/$mod" "$tmp_dest" 2>>"$LOG_FILE"; then
                     local rollback_dest="$HOME/.config/.$mod.rollback.$TIMESTAMP"
@@ -734,7 +734,7 @@ phase_deploy_configs() {
                 "icons")      dest="$HOME/.local/share/icons" ;;
                 "bin")        dest="$HOME/.local/bin" ;;
             esac
-            
+
             if [ -n "$dest" ]; then
                 log_info "Installing auxiliary asset profile: $asset"
                 if ! $DRY_RUN; then
@@ -761,7 +761,7 @@ phase_deploy_configs() {
 phase_install_shell_config() {
     local interactive=$1
     log_step "Niri Rice Shell Configuration"
-    
+
     if $interactive; then
         local choice
         read -rp "  Would you like to install Niri Rice Shell Configuration? [Y/n]: " choice
@@ -797,7 +797,7 @@ phase_install_shell_config() {
 
         local helper
         helper=$(get_system_aur_helper)
-        
+
         for pkg in "${missing_shell_pkgs[@]}"; do
             log_info "Installing required tool: $pkg"
             if sudo pacman -S --needed --noconfirm "$pkg" 2>>"$LOG_FILE"; then
@@ -910,10 +910,10 @@ phase_install_shell_config() {
 
     local current_shell
     current_shell=$(getent passwd "$USER" 2>/dev/null | cut -d: -f7) || current_shell=""
-    
+
     local target_shell
     target_shell=$(command -v zsh 2>/dev/null || echo "/usr/bin/zsh")
-    
+
     if [[ "$current_shell" != *zsh ]]; then
         log_info "Configuring default login shell profile path context target..."
         if chsh -s "$target_shell"; then
@@ -927,6 +927,83 @@ phase_install_shell_config() {
 
     log_success "Niri Rice Shell Configuration pipeline successfully processed."
     return 0
+}
+
+phase_configure_tty_autostart() {
+    log_step "Configuring TTY Autostart"
+    if $DRY_RUN; then
+        log_info "Dry Run: Would inject uwsm autostart into ~/.zprofile"
+        return 0
+    fi
+
+    local zprofile="$HOME/.zprofile"
+    local marker="# Niri Rice TTY Autostart"
+
+    if grep -qF "$marker" "$zprofile" 2>/dev/null; then
+        log_success "TTY Autostart already configured."
+        return 0
+    fi
+
+    if ! command -v uwsm &>/dev/null; then
+        log_warn "uwsm is not installed. Skipping TTY autostart configuration."
+        return 0
+    fi
+
+    {
+        printf "\n# Niri Rice TTY Autostart\n"
+        printf "if uwsm check may-start; then\n"
+        printf "    exec uwsm start -- niri\n"
+        printf "fi\n"
+    } >> "$zprofile"
+
+    log_success "Injected uwsm autostart block into ~/.zprofile"
+}
+
+phase_configure_bluetooth_resume() {
+    log_step "Configuring Bluetooth Resume Fix"
+
+    if ! command -v bluetoothctl &>/dev/null && ! pacman -Qi bluez &>/dev/null 2>&1; then
+        log_info "Bluez not installed. Skipping Bluetooth resume configuration."
+        return 0
+    fi
+
+    if $DRY_RUN; then
+        log_info "Dry Run: Would set AutoEnable=true in main.conf and install a sleep resume hook."
+        return 0
+    fi
+
+    local conf="/etc/bluetooth/main.conf"
+    if [ -f "$conf" ]; then
+        if grep -qE '^\s*AutoEnable\s*=\s*true' "$conf" 2>/dev/null; then
+            log_success "Bluetooth AutoEnable already configured."
+        elif grep -qE '^\s*#?\s*AutoEnable\s*=' "$conf" 2>/dev/null; then
+            if sudo sed -i -E 's/^\s*#?\s*AutoEnable\s*=.*/AutoEnable=true/' "$conf" 2>>"$LOG_FILE"; then
+                log_success "Set AutoEnable=true in $conf"
+            else
+                log_warn "Failed to update $conf"
+            fi
+        else
+            if { printf "\n[Policy]\nAutoEnable=true\n"; } | sudo tee -a "$conf" >>"$LOG_FILE" 2>&1; then
+                log_success "Appended AutoEnable=true to $conf"
+            else
+                log_warn "Failed to update $conf"
+            fi
+        fi
+    else
+        log_warn "$conf not found. Skipping AutoEnable configuration."
+    fi
+
+    local hook="/usr/lib/systemd/system-sleep/bluetooth-resume.sh"
+    local hook_content
+    hook_content=$(printf "#!/bin/sh\ncase \$1 in\n  post)\n    rfkill unblock bluetooth\n    systemctl restart bluetooth\n    ;;\nesac\n")
+    if printf "%s\n" "$hook_content" | sudo tee "$hook" > /dev/null; then
+        sudo chmod +x "$hook" 2>>"$LOG_FILE"
+        log_success "Installed Bluetooth resume hook: $hook"
+    else
+        log_warn "Failed to install Bluetooth resume hook: $hook"
+    fi
+
+    sudo systemctl restart bluetooth 2>>"$LOG_FILE" || true
 }
 
 phase_signal_environments() {
@@ -946,11 +1023,11 @@ phase_compile_summary() {
     echo -e "\n${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
     echo -e "${BLUE}${BOLD}Installation Summary${NC}"
     echo -e "${BLUE}${BOLD}-------------------------------------------------------------------${NC}"
-    
+
     local end_time
     end_time=$(date +%s)
     local elapsed=$((end_time - START_TIME))
-    
+
     echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
     echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
     echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
@@ -959,14 +1036,14 @@ phase_compile_summary() {
     echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
     echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}${FAILED_BACKUPS[*]:-None}${NC}"
     echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}${FAILED_ASSETS[*]:-None}${NC}"
-    
+
     if [ -d "$BACKUP_DIR" ]; then
         echo -e "  ${BOLD}* Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
     fi
     echo -e "  ${BOLD}* Diagnostic Log Location:${NC}  ${BLUE}$LOG_FILE${NC}"
     echo -e "  ${BOLD}* Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
     echo -e "${BLUE}-------------------------------------------------------------------${NC}"
-    
+
     if [ ${#FAILED_PACKAGES[@]} -gt 0 ] || [ ${#FAILED_CONFIGS[@]} -gt 0 ] || [ ${#FAILED_BACKUPS[@]} -gt 0 ] || [ ${#FAILED_ASSETS[@]} -gt 0 ]; then
         echo -e "\n${RED}${BOLD}        Installation Completed With Errors        ${NC}"
         echo -e "${YELLOW}   Review the failed packages/configurations above. ${NC}\n"
@@ -1026,7 +1103,7 @@ restore_backup_engine() {
 execute_restore_operation() {
     CURRENT_STEP=0
     TOTAL_STEPS=2
-    
+
     log_step "Selecting Backup Archive"
 
     local backups=()
@@ -1066,7 +1143,7 @@ execute_restore_operation() {
     fi
 
     local target_dir="${backups[$((choice - 1))]}"
-    
+
     log_step "Restoring System Backups"
     restore_backup_engine "$target_dir" || true
 }
@@ -1078,14 +1155,14 @@ execute_restore_operation() {
 phase_check_noctalia_version() {
     log_step "Checking Noctalia Version"
     if $DRY_RUN; then return 0; fi
-    
+
     local ver
     ver=$(pacman -Q noctalia-shell 2>/dev/null)
-    if [ -z "$ver" ]; then 
+    if [ -z "$ver" ]; then
         log_info "noctalia-shell is not installed yet."
         return 0
     fi
-    
+
     ver=${ver#* }
     case "$ver" in
         4.*) log_success "noctalia-shell version $ver matches the required 4.x line." ;;
@@ -1099,12 +1176,12 @@ phase_deploy_brave_flags() {
         log_info "No brave-flags.conf found. Skipping."
         return 0
     fi
-    
+
     if $DRY_RUN; then
         log_info "Dry Run: Would deploy ~/.config/brave-flags.conf for Brave Wayland support"
         return 0
     fi
-    
+
     mkdir -p "$HOME/.config" 2>>"$LOG_FILE"
     if cp -f "$SCRIPT_DIR/configs/brave-flags.conf" "$HOME/.config/brave-flags.conf" 2>>"$LOG_FILE"; then
         log_success "Deployed Brave Wayland launch flags: ~/.config/brave-flags.conf"
@@ -1119,7 +1196,7 @@ phase_apply_spicetify() {
         log_info "Spotify or Spicetify not installed. Skipping."
         return 0
     fi
-    
+
     if $DRY_RUN; then
         log_info "Dry Run: Would apply Spicetify theme to Spotify."
         return 0
@@ -1136,8 +1213,15 @@ phase_apply_spicetify() {
         [ -d "$spotify_dir/Apps" ] && sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"
     fi
 
+    local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
+    if [ ! -d "$marketplace_dir" ]; then
+        log_info "Installing Spicetify Marketplace..."
+        curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh &>>"$LOG_FILE" || true
+        spicetify config custom_apps marketplace &>>"$LOG_FILE" || true
+    fi
+
     if spicetify backup apply &>>"$LOG_FILE"; then
-        log_success "Applied Spicetify theme to Spotify."
+        log_success "Applied Spicetify theme and Marketplace to Spotify."
     else
         log_warn "Could not apply Spicetify automatically. Launch Spotify once, log in, close it, then run: spicetify backup apply"
     fi
@@ -1150,19 +1234,19 @@ phase_apply_spicetify() {
 run_orchestrated_installer() {
     local interactive=$1
     phase_validate_env
-    
+
     phase_system_refresh "$interactive" || true
     phase_inspect_dependencies
     phase_resolve_dependencies "$interactive" || true
     phase_check_noctalia_version
     phase_install_default_apps "$interactive" || true
-    
+
     if ! phase_execute_backup; then
         log_fail "Aborting installation due to backup failures."
         phase_compile_summary
         return 1
     fi
-    
+
     if ! phase_deploy_configs "$interactive"; then
         log_fail "Configuration deployment failed. Initiating automatic rollback..."
         if [ -d "$BACKUP_DIR" ]; then
@@ -1171,7 +1255,7 @@ run_orchestrated_installer() {
         phase_compile_summary
         return 1
     fi
-    
+
     if ! phase_install_shell_config "$interactive"; then
         log_fail "Shell configuration failed. Initiating automatic rollback..."
         if [ -d "$BACKUP_DIR" ]; then
@@ -1180,10 +1264,12 @@ run_orchestrated_installer() {
         phase_compile_summary
         return 1
     fi
-    
+
+    phase_configure_tty_autostart
+    phase_configure_bluetooth_resume
     phase_deploy_brave_flags
     phase_apply_spicetify
-    
+
     phase_signal_environments
     phase_compile_summary
 }
