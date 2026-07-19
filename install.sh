@@ -1445,8 +1445,8 @@ phase_apply_spicetify() {
     fi
 
     if ! spicetify config spotify_path "$spotify_dir" &>>"$LOG_FILE"; then
-        log_warn "Could not configure Spotify path for Spicetify."
-        return 0
+        log_fail "Could not configure Spotify path for Spicetify."
+        return 1
     fi
 
     local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
