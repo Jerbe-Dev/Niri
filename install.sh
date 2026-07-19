@@ -1011,13 +1011,15 @@ phase_configure_bluetooth_resume() {
             if sudo sed -i -E 's/^\s*#?\s*AutoEnable\s*=.*/AutoEnable=true/' "$conf" 2>>"$LOG_FILE"; then
                 log_success "Set AutoEnable=true in $conf"
             else
-                log_warn "Failed to update $conf"
+                log_fail "Failed to update $conf"
+                return 1
             fi
         else
             if { printf "\n[Policy]\nAutoEnable=true\n"; } | sudo tee -a "$conf" >>"$LOG_FILE" 2>&1; then
                 log_success "Appended AutoEnable=true to $conf"
             else
-                log_warn "Failed to update $conf"
+                log_fail "Failed to update $conf"
+                return 1
             fi
         fi
     else
@@ -1031,7 +1033,8 @@ phase_configure_bluetooth_resume() {
         sudo chmod +x "$hook" 2>>"$LOG_FILE"
         log_success "Installed Bluetooth resume hook: $hook"
     else
-        log_warn "Failed to install Bluetooth resume hook: $hook"
+        log_fail "Failed to install Bluetooth resume hook: $hook"
+        return 1
     fi
 
     sudo systemctl restart bluetooth 2>>"$LOG_FILE" || true
