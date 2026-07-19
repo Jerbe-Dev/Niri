@@ -1342,7 +1342,8 @@ phase_configure_audio() {
     if wpctl get-volume @DEFAULT_AUDIO_SINK@ &>/dev/null; then
         log_success "Default audio output sink is available."
     else
-        log_warn "PipeWire is running, but no default audio output sink is available."
+        log_fail "PipeWire is running, but no default audio output sink is available."
+        return 1
     fi
 
     return 0
