@@ -1459,7 +1459,8 @@ phase_apply_spicetify() {
             | sh &>>"$LOG_FILE"; then
             log_success "Spicetify Marketplace installer completed."
         else
-            log_warn "Spicetify Marketplace installer failed."
+            log_fail "Spicetify Marketplace installer failed."
+            return 1
         fi
     fi
 
