@@ -1315,7 +1315,8 @@ phase_configure_audio() {
     done
 
     if [ "$failed" -ne 0 ]; then
-        log_warn "One or more PipeWire audio services failed to start."
+        log_fail "One or more PipeWire audio services failed to start."
+        return 1
     fi
 
     if ! command -v wpctl &>/dev/null; then
