@@ -1228,7 +1228,7 @@ phase_configure_login_manager() {
 
     sudo mkdir -p /etc/greetd || return 1
 
-    sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
+    if ! sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
 [terminal]
 vt = 1
 
@@ -1236,6 +1236,17 @@ vt = 1
 command = "dbus-run-session cage -s -- regreet"
 user = "greeter"
 EOF
+    then
+        log_fail "Failed to write /etc/greetd/config.toml."
+        return 1
+    fi
+
+    if [ ! -s /etc/greetd/config.toml ]; then
+        log_fail "greetd configuration was not written correctly."
+        return 1
+    fi
+
+    log_success "Verified /etc/greetd/config.toml was written."
 
     if [ -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
         if "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" &&
