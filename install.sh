@@ -1217,7 +1217,7 @@ phase_configure_login_manager() {
 vt = 1
 
 [default_session]
-command = "cage -s -- regreet"
+command = "dbus-run-session cage -s -mlast -- regreet"
 user = "greeter"
 EOF
 

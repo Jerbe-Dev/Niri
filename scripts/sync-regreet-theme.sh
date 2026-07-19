@@ -58,4 +58,16 @@ PYTHON
 
 if command -v sudo >/dev/null 2>&1 && [ -d /etc/greetd ]; then
     sudo install -Dm644 "$OUT/regreet.css" /etc/greetd/regreet.css
+
+    cat > "$OUT/regreet.toml" <<EOF
+[GTK]
+application_prefer_dark_theme = true
+cursor_theme_name = "Bibata-Modern-Classic"
+
+[commands]
+reboot = ["systemctl", "reboot"]
+poweroff = ["systemctl", "poweroff"]
+EOF
+
+    sudo install -Dm644 "$OUT/regreet.toml" /etc/greetd/regreet.toml
 fi
