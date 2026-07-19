@@ -1209,6 +1209,12 @@ phase_configure_login_manager() {
         return 0
     fi
 
+    if ! command -v greetd &>/dev/null || ! command -v regreet &>/dev/null; then
+        log_warn "greetd or ReGreet is not installed."
+        log_warn "Keeping the existing TTY Niri autostart configuration unchanged."
+        return 0
+    fi
+
     local zprofile="$HOME/.zprofile"
     local tty_marker="# Niri Rice TTY Autostart"
 
@@ -1218,11 +1224,6 @@ phase_configure_login_manager() {
         else
             log_warn "Could not remove legacy TTY autostart block."
         fi
-    fi
-
-    if ! command -v greetd &>/dev/null || ! command -v regreet &>/dev/null; then
-        log_warn "greetd or ReGreet is not installed."
-        return 0
     fi
 
     sudo mkdir -p /etc/greetd || return 1
