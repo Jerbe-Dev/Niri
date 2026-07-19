@@ -1218,6 +1218,22 @@ command = "regreet"
 user = "greeter"
 EOF
 
+    local niri_session="/usr/share/wayland-sessions/niri.desktop"
+    if [ ! -f "$niri_session" ]; then
+        log_warn "Niri Wayland session file is missing: $niri_session"
+        log_warn "ReGreet may not be able to launch Niri from the login screen."
+    else
+        log_success "Niri Wayland session is available for ReGreet."
+    fi
+
+    local niri_session="/usr/share/wayland-sessions/niri.desktop"
+    if [ ! -f "$niri_session" ]; then
+        log_warn "Niri Wayland session file is missing: $niri_session"
+        log_warn "ReGreet may not be able to launch Niri from the login screen."
+    else
+        log_success "Niri Wayland session is available for ReGreet."
+    fi
+
     if sudo systemctl enable greetd.service 2>>"$LOG_FILE"; then
         log_success "Enabled greetd graphical login manager."
     else
