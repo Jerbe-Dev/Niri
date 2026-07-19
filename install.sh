@@ -1218,6 +1218,11 @@ phase_configure_login_manager() {
     local zprofile="$HOME/.zprofile"
     local tty_marker="# Niri Rice TTY Autostart"
 
+    if ! command -v cage &>/dev/null; then
+        log_fail "Cage is not installed; cannot configure ReGreet."
+        return 1
+    fi
+
     sudo mkdir -p /etc/greetd || return 1
 
     if ! sudo tee /etc/greetd/config.toml >/dev/null <<'EOF'
@@ -1253,11 +1258,6 @@ EOF
     fi
 
     log_success "Synchronized and verified ReGreet theme with Noctalia colors."
-
-    if ! command -v cage &>/dev/null; then
-        log_warn "Cage is not installed; ReGreet cannot start its Wayland display."
-        return 1
-    fi
 
     local niri_session="/usr/share/wayland-sessions/niri.desktop"
     if [ ! -f "$niri_session" ]; then
