@@ -1221,6 +1221,14 @@ command = "cage -s -- regreet"
 user = "greeter"
 EOF
 
+    if [ -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
+        if "$SCRIPT_DIR/scripts/sync-regreet-theme.sh"; then
+            log_success "Synchronized ReGreet theme with Noctalia colors."
+        else
+            log_warn "Could not synchronize ReGreet theme with Noctalia colors."
+        fi
+    fi
+
     if ! command -v cage &>/dev/null; then
         log_warn "Cage is not installed; ReGreet cannot start its Wayland display."
         return 1
