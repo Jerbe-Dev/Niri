@@ -1179,7 +1179,7 @@ execute_restore_operation() {
     local target_dir="${backups[$((choice - 1))]}"
 
     log_step "Restoring System Backups"
-    restore_backup_engine "$target_dir" || true
+    restore_backup_engine "$target_dir" || return 1
 }
 
 # ==============================================================================
@@ -1283,7 +1283,8 @@ EOF
         if sed -i '/^# Niri Rice TTY Autostart$/,/^fi$/d' "$zprofile"; then
             log_success "Removed legacy TTY autostart block after greetd was enabled."
         else
-            log_warn "Could not remove legacy TTY autostart block."
+            log_fail "Could not remove legacy TTY autostart block."
+            return 1
         fi
     fi
 
