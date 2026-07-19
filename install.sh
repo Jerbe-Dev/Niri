@@ -1242,6 +1242,7 @@ phase_configure_login_manager() {
     sudo tee /etc/sddm.conf.d/10-niri-rice.conf >/dev/null <<'EOF'
 [Theme]
 Current=sugar-candy
+CursorTheme=Bibata-Modern-Classic
 EOF
 
     log_success "SDDM configured with Sugar Candy theme."
