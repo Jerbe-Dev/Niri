@@ -100,10 +100,10 @@
                 {
                     "clockColor": "none",
                     "customFont": "JetBrains Mono Medium",
-                    "formatHorizontal": "HH:mm ddd, MMM dd",
-                    "formatVertical": "HH mm - dd MM",
+                    "formatHorizontal": "hh:mm AP ddd, MMM dd",
+                    "formatVertical": "hh mm AP - dd MM",
                     "id": "Clock",
-                    "tooltipFormat": "HH:mm ddd, MMM dd",
+                    "tooltipFormat": "hh:mm AP ddd, MMM dd",
                     "useCustomFont": true
                 }
             ],
