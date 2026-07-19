@@ -7,7 +7,7 @@ binds {
 
   // Noctalia binds // 
   Super+L { spawn-sh "qs -c noctalia-shell ipc call lockScreen lock"; }
-  Super+Comma { spawn-sh "qs -c noctalia-shell ipc call wallpaper toggle"; }
+  Super+Comma { spawn-sh "~/.config/noctalia/scripts/change-wallpaper-and-sync.sh"; }
   Super+Period { spawn-sh "qs -c noctalia-shell ipc call launcher emoji"; }
   Super+V { spawn-sh "qs -c noctalia-shell ipc call launcher clipboard"; }
   Super+D { spawn-sh "qs -c noctalia-shell ipc call controlCenter toggle"; }
