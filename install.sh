@@ -1240,15 +1240,19 @@ EOF
 
     log_success "Verified /etc/greetd/config.toml was written."
 
-    if [ -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
-        if "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" &&
-           [ -f /etc/greetd/regreet.css ] &&
-           [ -f /etc/greetd/regreet.toml ]; then
-            log_success "Synchronized and verified ReGreet theme with Noctalia colors."
-        else
-            log_warn "Could not verify the generated ReGreet theme configuration."
-        fi
+    if [ ! -x "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ]; then
+        log_fail "ReGreet theme synchronization script is missing or not executable."
+        return 1
     fi
+
+    if ! "$SCRIPT_DIR/scripts/sync-regreet-theme.sh" ||
+       [ ! -f /etc/greetd/regreet.css ] ||
+       [ ! -f /etc/greetd/regreet.toml ]; then
+        log_fail "Could not generate and verify the ReGreet theme configuration."
+        return 1
+    fi
+
+    log_success "Synchronized and verified ReGreet theme with Noctalia colors."
 
     if ! command -v cage &>/dev/null; then
         log_warn "Cage is not installed; ReGreet cannot start its Wayland display."
