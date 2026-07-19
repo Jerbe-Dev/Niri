@@ -1382,16 +1382,9 @@ phase_apply_spicetify() {
         sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE" || true
     fi
 
-    # Initialize Spicetify configuration if necessary.
     if ! spicetify config spotify_path "$spotify_dir" &>>"$LOG_FILE"; then
         log_warn "Could not configure Spotify path for Spicetify."
-    fi
-
-    # Create a backup before modifying Spotify.
-    if spicetify backup &>>"$LOG_FILE"; then
-        log_success "Spotify backup created/verified."
-    else
-        log_warn "Spicetify backup could not be created."
+        return 0
     fi
 
     local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
@@ -1406,18 +1399,24 @@ phase_apply_spicetify() {
         else
             log_warn "Spicetify Marketplace installer failed."
         fi
-    else
-        log_success "Spicetify Marketplace already exists."
     fi
 
-    if [ -d "$marketplace_dir" ]; then
-        if spicetify config custom_apps marketplace &>>"$LOG_FILE"; then
-            log_success "Marketplace registered as a Spicetify custom app."
-        else
-            log_warn "Could not register Marketplace custom app."
-        fi
-    else
-        log_warn "Marketplace directory is missing; skipping Marketplace registration."
+    if [ ! -d "$marketplace_dir" ]; then
+        log_warn "Marketplace directory is missing after installation."
+        return 0
+    fi
+
+    log_success "Spicetify Marketplace files verified."
+
+    if ! spicetify config custom_apps marketplace &>>"$LOG_FILE"; then
+        log_warn "Could not register Marketplace custom app."
+        return 0
+    fi
+
+    log_success "Marketplace registered as a Spicetify custom app."
+
+    if ! spicetify backup &>>"$LOG_FILE"; then
+        log_warn "Spicetify backup could not be created."
     fi
 
     if spicetify backup apply &>>"$LOG_FILE"; then
@@ -1425,6 +1424,15 @@ phase_apply_spicetify() {
     else
         log_warn "Spicetify could not apply changes automatically."
         log_warn "Spotify may need to be opened once before Spicetify can apply."
+    fi
+
+    local custom_apps
+    custom_apps=$(spicetify config custom_apps 2>/dev/null || true)
+
+    if [[ "$custom_apps" == *marketplace* ]]; then
+        log_success "Spicetify Marketplace registration verified."
+    else
+        log_warn "Marketplace files exist, but registration could not be verified."
     fi
 
     return 0
