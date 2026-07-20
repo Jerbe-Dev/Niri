@@ -16,39 +16,46 @@ get_terminal_size() {
     printf '%s %s\n' "$rows" "$cols"
 }
 
-# Remove the whitespace used to visually position the source ASCII art.
-# The script handles centering itself so the artwork stays centered on any TTY.
-trim_line() {
-    local line="$1"
-    line="${line#${line%%[![:space:]]*}}"
-    line="${line%${line##*[![:space:]]}}"
-    printf '%s' "$line"
-}
+read -r rows cols < <(get_terminal_size)
 
-center_line() {
+art_lines=()
+art_width=0
+
+if [[ -r "$ART" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Remove only trailing whitespace. Leading whitespace is part of the
+        # artwork and must be preserved or the L shape is destroyed.
+        line="${line%${line##*[![:space:]]}}"
+        art_lines+=("$line")
+        (( ${#line} > art_width )) && art_width=${#line}
+    done < "$ART"
+fi
+
+center_art_line() {
     local line="$1"
     local width="$2"
-    local length=${#line}
     local padding=0
 
-    if (( length < width )); then
-        padding=$(( (width - length) / 2 ))
+    if (( width > art_width )); then
+        padding=$(( (width - art_width) / 2 ))
     fi
 
     printf '%*s%s\n' "$padding" '' "$line"
 }
 
-read -r rows cols < <(get_terminal_size)
+center_text() {
+    local text="$1"
+    local padding=0
 
-art_lines=()
-if [[ -r "$ART" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        line=$(trim_line "$line")
-        [[ -n "$line" ]] && art_lines+=("$line")
-    done < "$ART"
-fi
+    if (( cols > ${#text} )); then
+        padding=$(( (cols - ${#text}) / 2 ))
+    fi
 
-# Center the whole login composition vertically.
+    printf '%*s%s' "$padding" '' "$text"
+}
+
+# Keep the entire ASCII artwork on one shared canvas. This preserves the
+# original shape instead of centering every line independently.
 content_lines=$(( ${#art_lines[@]} + 5 ))
 top_padding=$(( (rows - content_lines) / 2 ))
 (( top_padding < 0 )) && top_padding=0
@@ -57,26 +64,20 @@ clear
 printf '\n%.0s' $(seq 1 "$top_padding")
 
 for line in "${art_lines[@]}"; do
-    center_line "$line" "$cols"
+    center_art_line "$line" "$cols"
 done
 
 printf '\n\n'
-center_line "${HOSTNAME_DISPLAY} login:" "$cols"
+center_text "${HOSTNAME_DISPLAY} login: "
 
-# Keep the username prompt at the same centered position as the hostname prompt.
-# agetty invokes this program as its login program, so we collect the username
-# here and then hand authentication back to the system's PAM-aware login binary.
-username="${1:-}"
-if [[ -z "$username" ]]; then
-    printf '\033[1G'
-    IFS= read -r username
-fi
+# Username input begins directly after the centered login label instead of
+# being reset to column 1 on the far left.
+IFS= read -r username
 
 [[ -n "$username" ]] || exit 1
 
-# Move the cursor to the center before handing off to login. This keeps the
-# password prompt aligned with the centered login composition on normal TTYs.
-login_label="${HOSTNAME_DISPLAY} login:"
+# Keep the password prompt aligned with the centered login composition.
+login_label="${HOSTNAME_DISPLAY} login: "
 login_start=$(( (cols - ${#login_label}) / 2 ))
 (( login_start < 0 )) && login_start=0
 printf '\033[%dG' "$((login_start + 1))"
