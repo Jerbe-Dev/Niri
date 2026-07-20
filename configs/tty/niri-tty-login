@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -u
+
+ART="/usr/share/niri-rice/tty/l-ascii.txt"
+HOSTNAME_DISPLAY="ArchOS-Larptop"
+
+get_terminal_width() {
+    local width
+    width=$(tput cols 2>/dev/null || true)
+
+    if [[ "$width" =~ ^[0-9]+$ ]] && [ "$width" -gt 0 ]; then
+        printf '%s\n' "$width"
+    else
+        printf '80\n'
+    fi
+}
+
+center_line() {
+    local line="$1"
+    local width="$2"
+    local length=${#line}
+    local padding=0
+
+    if [ "$length" -lt "$width" ]; then
+        padding=$(( (width - length) / 2 ))
+    fi
+
+    printf '%*s%s\n' "$padding" '' "$line"
+}
+
+clear
+width=$(get_terminal_width)
+
+if [ -r "$ART" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+        center_line "$line" "$width"
+    done < "$ART"
+fi
+
+printf '\n\n'
+
+login_prompt="${HOSTNAME_DISPLAY} login:"
+center_line "$login_prompt" "$width"
+
+printf ' '
+
+IFS= read -r username
+
+exec /bin/login "$username"

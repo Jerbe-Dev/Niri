@@ -87,8 +87,6 @@ readonly DEFAULT_APP_ORDER=(
     "polkit-gnome"
     "qt6ct"
     "bibata-cursor-theme"
-    "sddm"
-    "sddm-sugar-candy"
     "pipewire"
     "pipewire-pulse"
     "wireplumber"
@@ -111,8 +109,6 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
-    ["sddm"]="sddm"
-    ["sddm-sugar-candy"]="sddm-sugar-candy"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -135,8 +131,6 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["polkit-gnome"]="polkit-gnome"
     ["qt6ct"]="qt6ct"
     ["bibata-cursor-theme"]="bibata-cursor-theme"
-    ["sddm"]="sddm"
-    ["sddm-sugar-candy"]="sddm-sugar-candy-git"
     ["pipewire"]="pipewire"
     ["pipewire-pulse"]="pipewire-pulse"
     ["wireplumber"]="wireplumber"
@@ -526,7 +520,7 @@ phase_install_default_apps() {
         local installed=false
 
         case "$app" in
-            polkit-gnome|bibata-cursor-theme|sddm|sddm-sugar-candy|pipewire|pipewire-pulse|wireplumber|bluez|bluez-utils|pavucontrol|python)
+            polkit-gnome|bibata-cursor-theme|pipewire|pipewire-pulse|wireplumber|bluez|bluez-utils|pavucontrol|python)
                 pacman -Qi "$target_pkg" &>/dev/null && installed=true
                 ;;
             *)
@@ -1219,18 +1213,24 @@ phase_check_noctalia_version() {
 }
 
 phase_configure_login_manager() {
-    log_step "Configuring Ly TUI Login Manager"
+    log_step "Configuring Getty TTY Login"
 
     if $DRY_RUN; then
-        log_info "Dry Run: Would install and configure ly as the login manager."
+        log_info "Dry Run: Would configure getty@tty2 with the centered Niri TTY login."
         return 0
     fi
 
-    if ! command -v ly &>/dev/null; then
-        if ! sudo pacman -S --noconfirm ly 2>>"$LOG_FILE"; then
-            log_fail "Failed to install ly."
-            return 1
-        fi
+    local tty_login="$SCRIPT_DIR/configs/tty/niri-tty-login"
+    local tty_art="$SCRIPT_DIR/configs/tty/l-ascii.txt"
+
+    if [ ! -x "$tty_login" ]; then
+        log_fail "TTY login wrapper is missing or not executable: $tty_login"
+        return 1
+    fi
+
+    if [ ! -f "$tty_art" ]; then
+        log_fail "TTY ASCII artwork is missing: $tty_art"
+        return 1
     fi
 
     if [ ! -f /usr/share/wayland-sessions/niri.desktop ]; then
@@ -1238,40 +1238,56 @@ phase_configure_login_manager() {
         return 1
     fi
 
+    log_info "Disabling graphical and TUI login managers..."
+
     sudo systemctl disable --now sddm.service 2>>"$LOG_FILE" || true
-    sudo systemctl disable getty@tty2.service 2>>"$LOG_FILE" || true
+    sudo systemctl disable --now ly@tty2.service 2>>"$LOG_FILE" || true
 
-    if ! sudo systemctl enable ly@tty2.service 2>>"$LOG_FILE"; then
-        log_fail "Failed to enable ly@tty2.service."
+    log_info "Installing Niri TTY login files..."
+
+    sudo install -Dm755 "$tty_login" \
+        /usr/local/bin/niri-tty-login || {
+        log_fail "Failed to install the TTY login wrapper."
+        return 1
+    }
+
+    sudo install -Dm644 "$tty_art" \
+        /usr/share/niri-rice/tty/l-ascii.txt || {
+        log_fail "Failed to install the TTY ASCII artwork."
+        return 1
+    }
+
+    local override_dir="/etc/systemd/system/getty@tty2.service.d"
+    local override_file="$override_dir/override.conf"
+
+    sudo install -d "$override_dir"
+
+    sudo tee "$override_file" >/dev/null <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --noclear --skip-login --login-program /usr/local/bin/niri-tty-login %I $TERM
+EOF
+
+    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+        log_fail "Failed to configure getty@tty2."
         return 1
     fi
 
-    if ! sudo systemctl is-enabled --quiet ly@tty2.service 2>>"$LOG_FILE"; then
-        log_fail "ly was enabled but could not be verified."
+    sudo systemctl daemon-reload
+
+    sudo systemctl enable getty@tty2.service 2>>"$LOG_FILE" || {
+        log_fail "Failed to enable getty@tty2.service."
+        return 1
+    }
+
+    if ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
+        log_fail "getty@tty2 was enabled but could not be verified."
         return 1
     fi
 
-    sudo sed -i \
-        -e 's/^#\?\s*animation\s*=.*/animation = matrix/' \
-        -e 's/^#\?\s*box_title\s*=.*/box_title = Niri/' \
-        -e 's/^#\?\s*clock\s*=.*/clock = %I:%M %p/' \
-        -e 's/^#\?\s*load\s*=.*/load = true/' \
-        -e 's/^#\?\s*save\s*=.*/save = true/' \
-        -e 's/^#\?\s*default_input\s*=.*/default_input = login/' \
-        /etc/ly/config.ini
-
-    local missing=""
-    for key in animation box_title clock load save default_input; do
-        grep -Eq "^${key}\s*=" /etc/ly/config.ini || missing="$missing $key"
-    done
-    if [ -n "$missing" ]; then
-        log_warn "Could not set these ly config keys (not found in file, left untouched):$missing"
-    fi
-
-    log_success "ly enabled on tty2 with session memory (load/save) turned on."
+    log_success "Getty enabled on tty2 with centered L ASCII login."
     return 0
 }
-
 
 phase_configure_audio() {
     log_step "Configuring PipeWire Audio"
@@ -1531,6 +1547,8 @@ run_orchestrated_installer() {
         phase_compile_summary
         return 1
     fi
+
+    phase_configure_tty_autostart
 
     phase_configure_login_manager
     phase_configure_audio
