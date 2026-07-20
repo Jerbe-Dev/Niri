@@ -1219,7 +1219,7 @@ phase_configure_login_manager() {
     log_step "Configuring Getty TTY Login"
 
     if $DRY_RUN; then
-        log_info "Dry Run: Would configure getty@tty2 with the centered Niri TTY login."
+        log_info "Dry Run: Would configure getty@tty1 and getty@tty2 with the centered Niri TTY login."
         return 0
     fi
 
@@ -1260,35 +1260,39 @@ phase_configure_login_manager() {
         return 1
     }
 
-    local override_dir="/etc/systemd/system/getty@tty2.service.d"
-    local override_file="$override_dir/override.conf"
+    local tty_override
 
-    sudo install -d "$override_dir"
+    for tty_override in tty1 tty2; do
+        local override_dir="/etc/systemd/system/getty@${tty_override}.service.d"
+        local override_file="$override_dir/override.conf"
 
-    sudo tee "$override_file" >/dev/null <<'EOF'
+        sudo install -d "$override_dir"
+
+        sudo tee "$override_file" >/dev/null <<'EOF'
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --noclear --skip-login --login-program /usr/local/bin/niri-tty-login %I $TERM
 EOF
 
-    if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-        log_fail "Failed to configure getty@tty2."
-        return 1
-    fi
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            log_fail "Failed to configure getty@${tty_override}."
+            return 1
+        fi
+    done
 
     sudo systemctl daemon-reload
 
-    sudo systemctl enable getty@tty2.service 2>>"$LOG_FILE" || {
-        log_fail "Failed to enable getty@tty2.service."
+    sudo systemctl enable getty@tty1.service getty@tty2.service 2>>"$LOG_FILE" || {
+        log_fail "Failed to enable tty1 and tty2 Getty services."
         return 1
     }
 
-    if ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
-        log_fail "getty@tty2 was enabled but could not be verified."
+    if ! sudo systemctl is-enabled --quiet getty@tty1.service 2>>"$LOG_FILE"         || ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
+        log_fail "TTY1 or TTY2 Getty could not be verified."
         return 1
     fi
 
-    log_success "Getty enabled on tty2 with centered L ASCII login."
+    log_success "Getty enabled on tty1 and tty2 with centered L ASCII login."
     return 0
 }
 
