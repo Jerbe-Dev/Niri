@@ -42,9 +42,17 @@ printf '\n\n'
 
 login_prompt="${HOSTNAME_DISPLAY} login:"
 center_line "$login_prompt" "$width"
-
 printf ' '
 
-IFS= read -r username
+# agetty passes the username as the first argument when --skip-login is not used.
+# Keep a fallback prompt so this wrapper remains usable when invoked directly.
+username="${1:-}"
+if [ -z "$username" ]; then
+    IFS= read -r username
+fi
+
+if [ -z "$username" ]; then
+    exit 1
+fi
 
 exec /bin/login "$username"
