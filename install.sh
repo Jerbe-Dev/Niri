@@ -94,6 +94,7 @@ readonly DEFAULT_APP_ORDER=(
     "bluez-utils"
     "pavucontrol"
     "python"
+    "uwsm"
 )
 
 declare -A DEFAULT_APP_BINARY_MAP=(
@@ -116,6 +117,7 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["bluez-utils"]="bluetoothctl"
     ["pavucontrol"]="pavucontrol"
     ["python"]="python"
+    ["uwsm"]="uwsm"
 )
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
@@ -138,6 +140,7 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["bluez-utils"]="bluez-utils"
     ["pavucontrol"]="pavucontrol"
     ["python"]="python"
+    ["uwsm"]="uwsm"
 )
 
 # --- State Trackers ---
