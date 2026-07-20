@@ -1,6 +1,1 @@
 [config]
-
-[templates.sddm-sugar-candy]
-input_path = "~/.config/noctalia/templates/sddm-sugar-candy.conf"
-output_path = "/var/cache/niri-rice/theme.conf.user"
-post_hook = "~/.config/noctalia/scripts/sync-sddm-theme.sh"

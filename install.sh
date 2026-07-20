@@ -1219,97 +1219,59 @@ phase_check_noctalia_version() {
 }
 
 phase_configure_login_manager() {
-    log_step "Configuring Graphical Login Manager"
+    log_step "Configuring Ly TUI Login Manager"
 
     if $DRY_RUN; then
-        log_info "Dry Run: Would configure SDDM with Sugar Candy."
+        log_info "Dry Run: Would install and configure ly as the login manager."
         return 0
     fi
 
-    command -v sddm &>/dev/null || { log_fail "SDDM is not installed."; return 1; }
-    pacman -Qi sddm-sugar-candy-git &>/dev/null || { log_fail "Sugar Candy theme is not installed."; return 1; }
+    if ! command -v ly &>/dev/null; then
+        if ! sudo pacman -S --noconfirm ly 2>>"$LOG_FILE"; then
+            log_fail "Failed to install ly."
+            return 1
+        fi
+    fi
 
     if [ ! -f /usr/share/wayland-sessions/niri.desktop ]; then
         log_fail "Niri Wayland session is missing."
         return 1
     fi
 
-    if ! sudo systemctl enable --force sddm.service 2>>"$LOG_FILE"; then
-        log_fail "Failed to enable SDDM."
-        log_fail "See diagnostic log: $LOG_FILE"
+    sudo systemctl disable --now sddm.service 2>>"$LOG_FILE" || true
+    sudo systemctl disable getty@tty2.service 2>>"$LOG_FILE" || true
+
+    if ! sudo systemctl enable ly@tty2.service 2>>"$LOG_FILE"; then
+        log_fail "Failed to enable ly@tty2.service."
         return 1
     fi
 
-    if sudo systemctl is-enabled --quiet sddm.service 2>>"$LOG_FILE"; then
-        log_success "Enabled and verified SDDM graphical login manager."
-    else
-        log_fail "SDDM was enabled but could not be verified."
+    if ! sudo systemctl is-enabled --quiet ly@tty2.service 2>>"$LOG_FILE"; then
+        log_fail "ly was enabled but could not be verified."
         return 1
     fi
 
-    sudo mkdir -p /etc/sddm.conf.d || return 1
-    sudo tee /etc/sddm.conf.d/10-niri-rice.conf >/dev/null <<'EOF'
-[Theme]
-Current=sugar-candy
-CursorTheme=Bibata-Modern-Classic
-EOF
+    sudo sed -i \
+        -e 's/^#\?\s*animation\s*=.*/animation = matrix/' \
+        -e 's/^#\?\s*box_title\s*=.*/box_title = Niri/' \
+        -e 's/^#\?\s*clock\s*=.*/clock = %I:%M %p/' \
+        -e 's/^#\?\s*load\s*=.*/load = true/' \
+        -e 's/^#\?\s*save\s*=.*/save = true/' \
+        -e 's/^#\?\s*default_input\s*=.*/default_input = login/' \
+        /etc/ly/config.ini
 
-    log_success "SDDM configured with Sugar Candy theme."
+    local missing=""
+    for key in animation box_title clock load save default_input; do
+        grep -Eq "^${key}\s*=" /etc/ly/config.ini || missing="$missing $key"
+    done
+    if [ -n "$missing" ]; then
+        log_warn "Could not set these ly config keys (not found in file, left untouched):$missing"
+    fi
+
+    log_success "ly enabled on tty2 with session memory (load/save) turned on."
     return 0
 }
 
-phase_sync_noctalia_sddm() {
-    log_step "Linking Noctalia Theme Sync to SDDM Sugar Candy"
-
-    if $DRY_RUN; then
-        log_info "Dry Run: would link Sugar Candy theme.conf to Noctalia's generated file."
-        return 0
-    fi
-
-    local cache_dir="/var/cache/niri-rice"
-    local theme_conf_target="/usr/share/sddm/themes/sugar-candy/theme.conf"
-    local generated_conf="$cache_dir/theme.conf.user"
-    local generated_wallpaper="$cache_dir/wallpaper"
-
-    if ! sudo install -d -m 0755 -o "$USER" -g "$USER" "$cache_dir" 2>>"$LOG_FILE"; then
-        log_fail "Failed to create $cache_dir"
-        return 1
-    fi
-    log_success "Ensured $cache_dir exists and is writable by $USER."
-
-    if [ ! -f "$generated_conf" ]; then
-        printf '[General]\n' > "$generated_conf"
-        chmod 0644 "$generated_conf"
-    fi
-
-    if [ ! -f "$generated_wallpaper" ]; then
-        local seed
-        seed=$(find "$SCRIPT_DIR/wallpapers" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) 2>/dev/null | head -n1)
-        [ -n "$seed" ] && cp -- "$seed" "$generated_wallpaper" && chmod 0644 "$generated_wallpaper"
-    fi
-
-    if [ ! -d "$(dirname "$theme_conf_target")" ]; then
-        log_fail "Sugar Candy theme dir missing. Is sddm-sugar-candy-git installed?"
-        return 1
-    fi
-
-    if [ -e "$theme_conf_target" ] && [ ! -L "$theme_conf_target" ] && [ ! -e "${theme_conf_target}.dist" ]; then
-        sudo cp -a "$theme_conf_target" "${theme_conf_target}.dist" 2>>"$LOG_FILE" || log_warn "Could not back up original theme.conf"
-    fi
-
-    if ! sudo ln -sf "$generated_conf" "$theme_conf_target" 2>>"$LOG_FILE"; then
-        log_fail "Failed to symlink $theme_conf_target"
-        return 1
-    fi
-
-    if [ "$(readlink -f "$theme_conf_target")" = "$(readlink -f "$generated_conf")" ]; then
-        log_success "Sugar Candy now reads Noctalia-generated colors."
-    else
-        log_fail "Symlink verification failed"
-        return 1
-    fi
-    return 0
-}
 
 phase_configure_audio() {
     log_step "Configuring PipeWire Audio"
@@ -1571,7 +1533,6 @@ run_orchestrated_installer() {
     fi
 
     phase_configure_login_manager
-    phase_sync_noctalia_sddm
     phase_configure_audio
     phase_configure_bluetooth
     phase_configure_bluetooth_resume
