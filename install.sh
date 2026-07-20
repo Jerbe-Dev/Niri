@@ -1262,7 +1262,7 @@ phase_configure_login_manager() {
 
     local tty_override
 
-    for tty_override in tty1 tty2; do
+    for tty_override in tty1 tty2 tty3; do
         local override_dir="/etc/systemd/system/getty@${tty_override}.service.d"
         local override_file="$override_dir/override.conf"
 
@@ -1282,13 +1282,13 @@ EOF
 
     sudo systemctl daemon-reload
 
-    sudo systemctl enable getty@tty1.service getty@tty2.service 2>>"$LOG_FILE" || {
+    sudo systemctl enable getty@tty1.service getty@tty2.service getty@tty3.service 2>>"$LOG_FILE" || {
         log_fail "Failed to enable tty1 and tty2 Getty services."
         return 1
     }
 
     if ! sudo systemctl is-enabled --quiet getty@tty1.service 2>>"$LOG_FILE"         || ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
-        log_fail "TTY1 or TTY2 Getty could not be verified."
+        log_fail "TTY1, TTY2, or TTY3 Getty could not be verified."
         return 1
     fi
 
