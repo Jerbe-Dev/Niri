@@ -987,7 +987,7 @@ phase_configure_tty_autostart() {
 
     {
         printf "\n# Niri Rice TTY Autostart\n"
-        printf "if uwsm check may-start; then\n"
+        printf "if uwsm check may-start 2; then\n"
         printf "    exec uwsm start -- niri\n"
         printf "fi\n"
     } >> "$zprofile" || {
