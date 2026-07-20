@@ -5,15 +5,24 @@ set -u
 ART="/usr/share/niri-rice/tty/l-ascii.txt"
 HOSTNAME_DISPLAY="ArchOS-Larptop"
 
-get_terminal_width() {
-    local width
-    width=$(tput cols 2>/dev/null || true)
+get_terminal_size() {
+    local rows cols
+    rows=$(tput lines 2>/dev/null || printf '24')
+    cols=$(tput cols 2>/dev/null || printf '80')
 
-    if [[ "$width" =~ ^[0-9]+$ ]] && [ "$width" -gt 0 ]; then
-        printf '%s\n' "$width"
-    else
-        printf '80\n'
-    fi
+    [[ "$rows" =~ ^[0-9]+$ ]] || rows=24
+    [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
+
+    printf '%s %s\n' "$rows" "$cols"
+}
+
+# Remove the whitespace used to visually position the source ASCII art.
+# The script handles centering itself so the artwork stays centered on any TTY.
+trim_line() {
+    local line="$1"
+    line="${line#${line%%[![:space:]]*}}"
+    line="${line%${line##*[![:space:]]}}"
+    printf '%s' "$line"
 }
 
 center_line() {
@@ -22,37 +31,54 @@ center_line() {
     local length=${#line}
     local padding=0
 
-    if [ "$length" -lt "$width" ]; then
+    if (( length < width )); then
         padding=$(( (width - length) / 2 ))
     fi
 
     printf '%*s%s\n' "$padding" '' "$line"
 }
 
-clear
-width=$(get_terminal_width)
+read -r rows cols < <(get_terminal_size)
 
-if [ -r "$ART" ]; then
-    while IFS= read -r line || [ -n "$line" ]; do
-        center_line "$line" "$width"
+art_lines=()
+if [[ -r "$ART" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line=$(trim_line "$line")
+        [[ -n "$line" ]] && art_lines+=("$line")
     done < "$ART"
 fi
 
+# Center the whole login composition vertically.
+content_lines=$(( ${#art_lines[@]} + 5 ))
+top_padding=$(( (rows - content_lines) / 2 ))
+(( top_padding < 0 )) && top_padding=0
+
+clear
+printf '\n%.0s' $(seq 1 "$top_padding")
+
+for line in "${art_lines[@]}"; do
+    center_line "$line" "$cols"
+done
+
 printf '\n\n'
+center_line "${HOSTNAME_DISPLAY} login:" "$cols"
 
-login_prompt="${HOSTNAME_DISPLAY} login:"
-center_line "$login_prompt" "$width"
-printf ' '
-
-# agetty passes the username as the first argument when --skip-login is not used.
-# Keep a fallback prompt so this wrapper remains usable when invoked directly.
+# Keep the username prompt at the same centered position as the hostname prompt.
+# agetty invokes this program as its login program, so we collect the username
+# here and then hand authentication back to the system's PAM-aware login binary.
 username="${1:-}"
-if [ -z "$username" ]; then
+if [[ -z "$username" ]]; then
+    printf '\033[1G'
     IFS= read -r username
 fi
 
-if [ -z "$username" ]; then
-    exit 1
-fi
+[[ -n "$username" ]] || exit 1
+
+# Move the cursor to the center before handing off to login. This keeps the
+# password prompt aligned with the centered login composition on normal TTYs.
+login_label="${HOSTNAME_DISPLAY} login:"
+login_start=$(( (cols - ${#login_label}) / 2 ))
+(( login_start < 0 )) && login_start=0
+printf '\033[%dG' "$((login_start + 1))"
 
 exec /bin/login "$username"
