@@ -723,7 +723,7 @@ phase_deploy_configs() {
         local action=true
         if $interactive; then
             local choice
-            read -rp "  Install user configuration profile layout for [${mod}]? [Y/n]: " choice
+            read -rp "  Install user configuration profile layout for [$mod]? [Y/n]: " choice
             choice=${choice:-Y}
             [[ ! "$choice" =~ ^[Yy]$ ]] && action=false
         fi
@@ -781,11 +781,11 @@ phase_deploy_configs() {
         if [ -d "$asset" ]; then
             local dest=""
             case "$asset" in
-                "wallpapers") dest="$HOME/Pictures/Wallpapers" ;;
-                "fonts")      dest="$HOME/.local/share/fonts" ;;
-                "themes")     dest="$HOME/.local/share/themes" ;;
-                "icons")      dest="$HOME/.local/share/icons" ;;
-                "bin")        dest="$HOME/.local/bin" ;;
+                wallpapers) dest="$HOME/Pictures/Wallpapers" ;;
+                fonts)      dest="$HOME/.local/share/fonts" ;;
+                themes)     dest="$HOME/.local/share/themes" ;;
+                icons)      dest="$HOME/.local/share/icons" ;;
+                bin)        dest="$HOME/.local/bin" ;;
             esac
 
             if [ -n "$dest" ]; then
@@ -818,7 +818,6 @@ phase_deploy_configs() {
 phase_install_shell_config() {
     local interactive=$1
     log_step "Niri Rice Shell Configuration"
-
     if $interactive; then
         local choice
         read -rp "  Would you like to install Niri Rice Shell Configuration? [Y/n]: " choice
@@ -908,7 +907,7 @@ phase_install_shell_config() {
         if git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$p10k_dest" >>"$LOG_FILE" 2>&1; then
             log_success "Powerlevel10k configuration theme cloned."
         else
-            log_fail "Failed to successfully clone Powerlevel10k repository mirror target."
+            log_fail "Failed to pull configuration plugin assets: powerlevel10k"
             return 1
         fi
     else
@@ -1090,7 +1089,7 @@ phase_configure_bluetooth_resume() {
     fi
 
     if ! sudo systemctl restart bluetooth 2>>"$LOG_FILE"; then
-        log_fail "Failed to restart Bluetooth service."
+        log_fail "Failed to restart bluetooth service."
         return 1
     fi
 }
@@ -1196,8 +1195,6 @@ execute_restore_operation() {
     log_step "Selecting Backup Archive"
 
     local backups=()
-    local dir
-
     if [ -d "$HOME" ]; then
         for dir in "$HOME"/.config-backup-*; do
             if [ -d "$dir" ]; then
@@ -1373,7 +1370,8 @@ EOF
         return 1
     }
 
-    if ! sudo systemctl is-enabled --quiet getty@tty1.service 2>>"$LOG_FILE"         || ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
+    if ! sudo systemctl is-enabled --quiet getty@tty1.service 2>>"$LOG_FILE" || \
+       ! sudo systemctl is-enabled --quiet getty@tty2.service 2>>"$LOG_FILE"; then
         log_fail "TTY1, TTY2, or TTY3 Getty could not be verified."
         return 1
     fi
@@ -1530,15 +1528,9 @@ phase_apply_spicetify() {
 
     log_info "Preparing Spotify installation directory: $spotify_dir"
 
-    if ! sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
+    if ! sudo chmod -R a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
         log_fail "Could not make Spotify installation writable."
         return 1
-    fi
-
-    if [ -d "$spotify_dir/Apps" ]; then
-        if ! sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
-            log_warn "Could not make Spotify Apps directory fully writable; continuing."
-        fi
     fi
 
     if ! spicetify config spotify_path "$spotify_dir" &>>"$LOG_FILE"; then
@@ -1546,7 +1538,13 @@ phase_apply_spicetify() {
         return 1
     fi
 
-    local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
+    local config_dir
+    config_dir=$(spicetify config-dir 2>/dev/null || true)
+    if [ -z "$config_dir" ]; then
+        config_dir="$HOME/.config/spicetify"
+    fi
+
+    local marketplace_dir="$config_dir/CustomApps/marketplace"
 
     if [ ! -d "$marketplace_dir" ]; then
         log_info "Installing Spicetify Marketplace..."
@@ -1562,7 +1560,7 @@ phase_apply_spicetify() {
     fi
 
     if [ ! -d "$marketplace_dir" ]; then
-        log_fail "Marketplace directory is missing after installation."
+        log_fail "Marketplace directory is missing after installation: $marketplace_dir"
         return 1
     fi
 
@@ -1575,17 +1573,62 @@ phase_apply_spicetify() {
 
     log_success "Marketplace registered as a Spicetify custom app."
 
-    log_info "Refreshing Spotify client resources before applying Spicetify..."
-
-    if ! spicetify restore backup &>>"$LOG_FILE"; then
-        log_info "Spotify restore skipped or no previous Spicetify backup exists."
+    # Spotify must be launched once so its client resources are initialized.
+    # Then it is closed once before Spicetify applies the backup and patches.
+    if pgrep -x spotify >/dev/null 2>&1; then
+        log_info "Spotify is already running; closing it before initialization."
+        pkill -TERM -x spotify || true
+        for _ in {1..50}; do
+            pgrep -x spotify >/dev/null 2>&1 || break
+            sleep 0.1
+        done
     fi
 
+    log_info "Launching Spotify once to initialize client resources..."
+    spotify >/dev/null 2>&1 &
+    local spotify_pid=$!
+    local spotify_started=false
+
+    for _ in {1..100}; do
+        if pgrep -x spotify >/dev/null 2>&1; then
+            spotify_started=true
+            break
+        fi
+        if ! kill -0 "$spotify_pid" 2>/dev/null; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    if ! $spotify_started; then
+        log_fail "Spotify did not start successfully for client initialization."
+        wait "$spotify_pid" 2>/dev/null || true
+        return 1
+    fi
+
+    sleep 2
+
+    log_info "Stopping Spotify once before applying Spicetify..."
+    pkill -TERM -x spotify || true
+    for _ in {1..100}; do
+        if ! pgrep -x spotify >/dev/null 2>&1; then
+            break
+        fi
+        sleep 0.1
+    done
+    wait "$spotify_pid" 2>/dev/null || true
+
+    if pgrep -x spotify >/dev/null 2>&1; then
+        log_fail "Spotify did not close cleanly before Spicetify apply."
+        return 1
+    fi
+
+    log_info "Applying Spicetify after Spotify client initialization..."
     if spicetify backup apply &>>"$LOG_FILE"; then
         log_success "Spicetify successfully applied to Spotify."
     else
-        log_warn "Spicetify could not apply changes automatically."
-        log_warn "Marketplace is installed and registered. Run \"spicetify backup apply\" after opening Spotify once."
+        log_fail "Spicetify could not apply changes after Spotify initialization."
+        return 1
     fi
 
     local custom_apps
@@ -1640,7 +1683,6 @@ run_orchestrated_installer() {
     fi
 
     phase_configure_tty_autostart
-
     phase_configure_login_manager
     phase_configure_audio
     phase_configure_bluetooth
