@@ -1445,8 +1445,7 @@ phase_apply_spicetify() {
     log_info "Preparing Spotify installation directory: $spotify_dir"
 
     if ! sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
-        log_fail "Could not make Spotify installation writable."
-        return 1
+        log_warn "Could not make Spotify installation directory writable; continuing."
     fi
 
     if [ -d "$spotify_dir/Apps" ]; then
