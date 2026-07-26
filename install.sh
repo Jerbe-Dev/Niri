@@ -169,6 +169,20 @@ HAS_INTERNET=true
 mkdir -p "$LOG_DIR"
 echo "=== NIRI RICE INITIALIZATION AUDIT RUNNING AT $(date) ===" > "$LOG_FILE"
 
+join_sp() {
+    # Joins args with a literal space, regardless of the global IFS setting.
+    local IFS=' '
+    echo "$*"
+}
+
+join_or_none() {
+    if [ "$#" -eq 0 ]; then
+        echo "None"
+    else
+        join_sp "$@"
+    fi
+}
+
 log_to_file() {
     local level="$1"
     local msg="$2"
@@ -456,7 +470,7 @@ phase_resolve_dependencies() {
         return 0
     fi
 
-    echo -e "  The following programs are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
+    echo -e "  The following programs are missing: ${YELLOW}$(join_sp "${missing_pkgs[@]}")${NC}"
 
     local choice="Y"
     if $interactive; then
@@ -547,7 +561,7 @@ phase_install_default_apps() {
         return 0
     fi
 
-    echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
+    echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}$(join_sp "${missing_pkgs[@]}")${NC}"
 
     local choice="Y"
     if $interactive; then
@@ -648,8 +662,13 @@ phase_execute_backup() {
         fi
     done
 
+    if ! mkdir -p "$BACKUP_DIR/.config" 2>>"$LOG_FILE"; then
+        log_fail "Failed to initialize backup matrix .config subdirectory."
+        return 1
+    fi
+
     for mod in "${verified_backups[@]}"; do
-        if cp -a "$HOME/.config/$mod" "$BACKUP_DIR/" 2>>"$LOG_FILE"; then
+        if cp -a "$HOME/.config/$mod" "$BACKUP_DIR/.config/" 2>>"$LOG_FILE"; then
             log_success "Saved backup copy of: ~/.config/$mod"
         else
             log_fail "Failed to copy backup configurations for module component target: $mod"
@@ -827,7 +846,7 @@ phase_install_shell_config() {
     done
 
     if [ ${#missing_shell_pkgs[@]} -gt 0 ]; then
-        log_info "Missing shell dependencies: ${missing_shell_pkgs[*]}"
+        log_info "Missing shell dependencies: $(join_sp "${missing_shell_pkgs[@]}")"
         if ! $HAS_INTERNET; then
             log_fail "Network access unavailable. Cannot install missing required shell packages."
             return 1
@@ -1076,14 +1095,14 @@ phase_compile_summary() {
     end_time=$(date +%s)
     local elapsed=$((end_time - START_TIME))
 
-    echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}${FAILED_BACKUPS[*]:-None}${NC}"
-    echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}${FAILED_ASSETS[*]:-None}${NC}"
+    echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}$(join_or_none "${INSTALLED_PACKAGES[@]}")${NC}"
+    echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}$(join_or_none "${ALREADY_PRESENT_PACKAGES[@]}")${NC}"
+    echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}$(join_or_none "${FAILED_PACKAGES[@]}")${NC}"
+    echo -e "  ${BOLD}* Installed Configs:${NC}        ${GREEN}$(join_or_none "${INSTALLED_CONFIGS[@]}")${NC}"
+    echo -e "  ${BOLD}* Skipped Configs:${NC}          ${YELLOW}$(join_or_none "${SKIPPED_CONFIGS[@]}")${NC}"
+    echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}$(join_or_none "${FAILED_CONFIGS[@]}")${NC}"
+    echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}$(join_or_none "${FAILED_BACKUPS[@]}")${NC}"
+    echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}$(join_or_none "${FAILED_ASSETS[@]}")${NC}"
 
     if [ -d "$BACKUP_DIR" ]; then
         echo -e "  ${BOLD}* Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"

@@ -1,4 +1,8 @@
-layout {
+// Disabled: this duplicated the "layout" node already defined in config.kdl,
+// and since this file is included last, it was silently overriding your
+// focus-ring/border/shadow colors with noctalia's yellow theme instead.
+// Re-enable (remove the "/-") if you want the yellow accent back.
+/-layout {
 
     focus-ring {
         active-color   "#e0e467"

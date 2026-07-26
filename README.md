@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌿 Gigi's Rice
+# 🌿 Niri Rice
 
 A modern, minimal and smooth **Niri + Noctalia** desktop rice for **Arch Linux**.
 
@@ -8,8 +8,8 @@ A modern, minimal and smooth **Niri + Noctalia** desktop rice for **Arch Linux**
 
 ![Arch Linux](https://img.shields.io/badge/Arch-Linux-1793D1?logo=arch-linux&logoColor=white)
 ![Wayland](https://img.shields.io/badge/Wayland-Niri-00BFFF)
-![License](https://img.shields.io/github/license/deadduck-09/gigis-rice)
-![Stars](https://img.shields.io/github/stars/deadduck-09/gigis-rice?style=social)
+![License](https://img.shields.io/github/license/Jerbe-Dev/Niri)
+![Stars](https://img.shields.io/github/stars/Jerbe-Dev/Niri?style=social)
 ![Installer](https://img.shields.io/badge/Installer-Included-4CAF50)
 
 </div>
@@ -123,8 +123,8 @@ paru -S noctalia-shell
 Clone the repository:
 
 ```bash
-git clone https://github.com/deadduck-09/gigis-rice.git
-cd gigis-rice
+git clone https://github.com/Jerbe-Dev/Niri.git
+cd Niri
 ```
 
 Make the installer executable:
@@ -236,7 +236,7 @@ All keybinds will open this if not changed.
 
 The wallpapers featured in the showcase are included in the **wallpapers** folder.
 
-For my complete wallpaper collection, visit:
+For the original author's complete wallpaper collection, visit:
 
 ➡️ **https://github.com/deadduck-09/FireWalls.git**
 
