@@ -1461,7 +1461,15 @@ phase_apply_spicetify() {
         return 1
     fi
 
-    local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
+    local spicetify_userdata
+    spicetify_userdata=$(spicetify path userdata 2>/dev/null | tail -n 1)
+
+    if [ -z "$spicetify_userdata" ] || [ ! -d "$spicetify_userdata" ]; then
+        log_fail "Could not determine Spicetify userdata directory."
+        return 1
+    fi
+
+    local marketplace_dir="$spicetify_userdata/CustomApps/marketplace"
 
     if [ ! -d "$marketplace_dir" ]; then
         log_info "Installing Spicetify Marketplace..."
