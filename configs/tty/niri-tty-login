@@ -4,7 +4,6 @@ import os
 import re
 import select
 import shutil
-import signal
 import sys
 import termios
 import tty
@@ -23,33 +22,51 @@ def load_art():
             lines = handle.read().splitlines()
     except OSError:
         lines = []
+
     while lines and not lines[-1]:
         lines.pop()
+
+    # Remove only the common left margin. This keeps the shape of the logo
+    # intact while making room for the login prompts beside it.
+    nonempty = [line for line in lines if line.strip()]
+    if nonempty:
+        margin = min(len(line) - len(line.lstrip()) for line in nonempty)
+        if margin:
+            lines = [line[margin:] if line else line for line in lines]
+
     return lines
 
 
 def render_login_screen():
     rows, cols = terminal_size()
     art = load_art()
-    group_height = len(art) + 3
-    top = max(0, (rows - group_height) // 2)
+    art_width = max((len(line) for line in art), default=0)
+    art_height = len(art)
+
+    # Keep the logo on the left and the real login prompts on the right.
+    # The whole two-column layout is centered as one group.
+    gap = 6
+    prompt_width = len("Password: ")
+    total_width = art_width + gap + prompt_width
+    left = max(0, (cols - total_width) // 2)
+    art_left = left
+    prompt_left = left + art_width + gap
+
+    top = max(0, (rows - art_height) // 2)
 
     sys.stdout.write("\033[2J\033[H")
     for index, line in enumerate(art):
-        column = max(0, (cols - len(line)) // 2)
-        sys.stdout.write(f"\033[{top + index + 1};{column + 1}H{line}")
+        sys.stdout.write(f"\033[{top + index + 1};{art_left + 1}H{line}")
     sys.stdout.flush()
 
-    return top + len(art) + 1
+    return top + (art_height // 2), prompt_left
 
 
-def centered_prompt(text, row):
-    _, cols = terminal_size()
-    column = max(0, (cols - len(text)) // 2)
+def centered_prompt(text, row, column):
     return f"\033[2K\033[{row + 1};{column + 1}H{text}".encode()
 
 
-login_row = render_login_screen()
+login_row, prompt_column = render_login_screen()
 password_row = login_row + 1
 
 pid, master_fd = os.forkpty()
@@ -84,7 +101,7 @@ try:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row))
+                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row, prompt_column))
                     buffer.clear()
                     state = "username"
                     continue
@@ -95,26 +112,22 @@ try:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("Password: ", password_row))
+                    os.write(sys.stdout.fileno(), centered_prompt("Password: ", password_row, prompt_column))
                     buffer.clear()
                     state = "password"
                     continue
 
             if state == "password":
-                # Authentication failed: preserve the error output and center
-                # the next login prompt instead of allowing login to reset it
-                # to column zero.
                 match = re.search(rb"login:\s*$", buffer)
                 if match:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row))
+                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row, prompt_column))
                     buffer.clear()
                     state = "username"
                     continue
 
-            # Keep normal output flowing without growing the buffer forever.
             if len(buffer) > 4096:
                 os.write(sys.stdout.fileno(), buffer)
                 buffer.clear()
