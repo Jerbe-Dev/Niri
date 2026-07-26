@@ -3,16 +3,13 @@
 set -u
 
 ART="/usr/share/niri-rice/tty/l-ascii.txt"
-HOSTNAME_DISPLAY="ArchOS-Larptop"
 
 get_terminal_size() {
     local rows cols
     rows=$(tput lines 2>/dev/null || printf '24')
     cols=$(tput cols 2>/dev/null || printf '80')
-
     [[ "$rows" =~ ^[0-9]+$ ]] || rows=24
     [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
-
     printf '%s %s\n' "$rows" "$cols"
 }
 
@@ -23,36 +20,13 @@ art_width=0
 
 if [[ -r "$ART" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line%${line##*[![:space:]]}}"
         art_lines+=("$line")
         (( ${#line} > art_width )) && art_width=${#line}
     done < "$ART"
 fi
 
-center_art_line() {
-    local line="$1"
-    local width="$2"
-    local padding=0
-
-    if (( width > art_width )); then
-        padding=$(( (width - art_width) / 2 ))
-    fi
-
-    printf '%*s%s\n' "$padding" '' "$line"
-}
-
-center_text() {
-    local text="$1"
-    local padding=0
-
-    if (( cols > ${#text} )); then
-        padding=$(( (cols - ${#text}) / 2 ))
-    fi
-
-    printf '%*s%s' "$padding" '' "$text"
-}
-
-content_lines=$(( ${#art_lines[@]} + 5 ))
+read -r rows cols < <(get_terminal_size)
+content_lines=$(( ${#art_lines[@] } + 3 ))
 top_padding=$(( (rows - content_lines) / 2 ))
 (( top_padding < 0 )) && top_padding=0
 
@@ -60,15 +34,14 @@ clear
 printf '\n%.0s' $(seq 1 "$top_padding")
 
 for line in "${art_lines[@]}"; do
-    center_art_line "$line" "$cols"
+    padding=0
+    (( cols > art_width )) && padding=$(( (cols - art_width) / 2 ))
+    printf '%*s%s\n' "$padding" '' "$line"
 done
 
-printf '\n\n'
-center_text "${HOSTNAME_DISPLAY} login: "
-IFS= read -r username
+printf '\n'
 
-[[ -n "$username" ]] || exit 1
-
-# Authenticate directly and start Niri as the authenticated user.
-# Do not spawn a normal shell first; that was why users had to type `niri` manually.
-exec su - "$username" -c 'exec niri'
+# Let the real system login program handle BOTH username and password.
+# The previous custom username + su flow restarted the wrapper after failed
+# authentication, which made the username prompt appear again and again.
+exec /usr/bin/login
