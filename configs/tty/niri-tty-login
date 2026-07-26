@@ -17,13 +17,36 @@ read -r rows cols < <(get_terminal_size)
 
 art_lines=()
 art_width=0
+common_indent=
 
 if [[ -r "$ART" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
         art_lines+=("$line")
-        (( ${#line} > art_width )) && art_width=${#line}
+
+        [[ -z "$line" ]] && continue
+
+        indent="${line%%[^[:space:]]*}"
+        indent_len=${#indent}
+
+        if [[ -z "$common_indent" || "$indent_len" -lt "$common_indent" ]]; then
+            common_indent=$indent_len
+        fi
     done < "$ART"
 fi
+
+common_indent=${common_indent:-0}
+
+trimmed_lines=()
+for line in "${art_lines[@]}"; do
+    if (( common_indent > 0 )); then
+        line="${line:$common_indent}"
+    fi
+
+    trimmed_lines+=("$line")
+    (( ${#line} > art_width )) && art_width=${#line}
+done
+
+art_lines=("${trimmed_lines[@]}")
 
 read -r rows cols < <(get_terminal_size)
 content_lines=$(( ${#art_lines[@]} + 3 ))
