@@ -26,7 +26,7 @@ if [[ -r "$ART" ]]; then
 fi
 
 read -r rows cols < <(get_terminal_size)
-content_lines=$(( ${#art_lines[@] } + 3 ))
+content_lines=$(( ${#art_lines[@]} + 3 ))
 top_padding=$(( (rows - content_lines) / 2 ))
 (( top_padding < 0 )) && top_padding=0
 
