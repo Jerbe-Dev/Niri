@@ -1444,13 +1444,13 @@ phase_apply_spicetify() {
 
     log_info "Preparing Spotify installation directory: $spotify_dir"
 
-    if ! sudo chmod -R a+rwX "$spotify_dir" 2>>"$LOG_FILE"; then
+    if ! sudo chmod a+wr "$spotify_dir" 2>>"$LOG_FILE"; then
         log_fail "Could not make Spotify installation writable."
         return 1
     fi
 
     if [ -d "$spotify_dir/Apps" ]; then
-        if ! sudo chmod -R a+rwX "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
+        if ! sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
             log_warn "Could not make Spotify Apps directory fully writable; continuing."
         fi
     fi
@@ -1460,15 +1460,7 @@ phase_apply_spicetify() {
         return 1
     fi
 
-    local spicetify_userdata
-    spicetify_userdata=$(spicetify path userdata 2>/dev/null | tail -n 1)
-
-    if [ -z "$spicetify_userdata" ] || [ ! -d "$spicetify_userdata" ]; then
-        log_fail "Could not determine Spicetify userdata directory."
-        return 1
-    fi
-
-    local marketplace_dir="$spicetify_userdata/CustomApps/marketplace"
+    local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
 
     if [ ! -d "$marketplace_dir" ]; then
         log_info "Installing Spicetify Marketplace..."
