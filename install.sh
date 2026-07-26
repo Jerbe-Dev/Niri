@@ -1449,9 +1449,8 @@ phase_apply_spicetify() {
     fi
 
     if [ -d "$spotify_dir/Apps" ]; then
-        if ! sudo chmod -R a+wr "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
-            log_fail "Could not make Spotify Apps directory writable."
-            return 1
+        if ! sudo chmod -R a+rwX "$spotify_dir/Apps" 2>>"$LOG_FILE"; then
+            log_warn "Could not make Spotify Apps directory fully writable; continuing."
         fi
     fi
 
