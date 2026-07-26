@@ -64,7 +64,107 @@ done
 
 printf '\n'
 
-# Let the real system login program handle BOTH username and password.
-# The previous custom username + su flow restarted the wrapper after failed
-# authentication, which made the username prompt appear again and again.
-exec /usr/bin/login
+# Keep util-linux login/PAM authentication, but proxy its prompt output through
+# a PTY so both login: and Password: are positioned in the terminal center.
+# The actual credentials and authentication remain handled by /usr/bin/login.
+if command -v python3 >/dev/null 2>&1; then
+    TTY_COLS="$cols" TTY_ROWS="$rows" python3 - <<'PY'
+import errno
+import fcntl
+import os
+import pty
+import signal
+import struct
+import sys
+import termios
+
+cols = int(os.environ.get("TTY_COLS", "80"))
+rows = int(os.environ.get("TTY_ROWS", "24"))
+PROMPTS = (b"login: ", b"Password: ")
+pending = b""
+
+
+def centered_prompt(prompt: bytes) -> bytes:
+    start = max(1, (cols - len(prompt.rstrip()) + 2) // 2)
+    return b"\r\x1b[K\x1b[" + str(start).encode() + b"G" + prompt
+
+
+def set_winsize(fd: int) -> None:
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+
+
+def read_from_master(fd: int) -> bytes:
+    global pending
+    try:
+        data = os.read(fd, 4096)
+    except OSError as exc:
+        if exc.errno == errno.EIO:
+            return b""
+        raise
+
+    if not data:
+        return b""
+
+    pending += data
+    output = bytearray()
+
+    while pending:
+        matches = [(pending.find(prompt), prompt) for prompt in PROMPTS if pending.find(prompt) >= 0]
+        if not matches:
+            keep = max(len(prompt) for prompt in PROMPTS) - 1
+            if len(pending) > keep:
+                output.extend(pending[:-keep])
+                pending = pending[-keep:]
+            break
+
+        index, prompt = min(matches, key=lambda item: item[0])
+        output.extend(pending[:index])
+        output.extend(centered_prompt(prompt))
+        pending = pending[index + len(prompt):]
+
+    return bytes(output)
+
+
+pid, master = pty.fork()
+
+if pid == 0:
+    os.execv("/usr/bin/login", ["/usr/bin/login"])
+
+set_winsize(master)
+
+try:
+    while True:
+        data = read_from_master(master)
+        if data:
+            os.write(sys.stdout.fileno(), data)
+
+        try:
+            child_pid, status = os.waitpid(pid, os.WNOHANG)
+            if child_pid == pid:
+                if pending:
+                    os.write(sys.stdout.fileno(), pending)
+                break
+        except ChildProcessError:
+            break
+
+        try:
+            input_data = os.read(sys.stdin.fileno(), 4096)
+            if input_data:
+                os.write(master, input_data)
+        except OSError:
+            break
+except KeyboardInterrupt:
+    try:
+        os.kill(pid, signal.SIGINT)
+    except ProcessLookupError:
+        pass
+finally:
+    try:
+        os.close(master)
+    except OSError:
+        pass
+PY
+else
+    # Safe fallback if Python is unavailable: preserve normal PAM login.
+    exec /usr/bin/login
+fi
