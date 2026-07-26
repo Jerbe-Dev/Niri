@@ -1010,7 +1010,29 @@ phase_configure_tty_autostart() {
     {
         printf "\n# Niri Rice TTY Autostart\n"
         printf "if uwsm check may-start 2; then\n"
-        printf "    exec uwsm start -- niri\n"
+        printf "    tput civis 2>/dev/null\n"
+        printf "    clear\n"
+        printf "    uwsm start -- niri &\n"
+        printf "    niri_pid=\$!\n"
+        printf "    frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'\n"
+        printf "    nframes=\${#frames}\n"
+        printf "    i=0\n"
+        printf "    cols=\$(tput cols 2>/dev/null || echo 80)\n"
+        printf "    rows=\$(tput lines 2>/dev/null || echo 24)\n"
+        printf "    row=\$(( rows / 2 ))\n"
+        printf "    col=\$(( cols / 2 ))\n"
+        printf "    runtime_dir=\"\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}\"\n"
+        printf "    while ! ls \"\$runtime_dir\"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 \"\$niri_pid\" 2>/dev/null; do\n"
+        printf "        frame=\${frames:\$i:1}\n"
+        printf "        tput cup \"\$row\" \"\$col\" 2>/dev/null\n"
+        printf "        printf '%%s' \"\$frame\"\n"
+        printf "        i=\$(( (i + 1) %% nframes ))\n"
+        printf "        sleep 0.08\n"
+        printf "    done\n"
+        printf "    tput cnorm 2>/dev/null\n"
+        printf "    clear\n"
+        printf "    wait \"\$niri_pid\"\n"
+        printf "    exit\n"
         printf "fi\n"
     } >> "$zprofile" || {
         log_fail "Failed to update ~/.zprofile"
@@ -1315,8 +1337,30 @@ EOF
 # NIRI_RICE_TTY_AUTOSTART
 if [[ -t 0 ]] && [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[123]$ ]] && [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
     if command -v niri >/dev/null 2>&1; then
-        exec niri
+        tput civis 2>/dev/null
+        clear
+        niri &
+        niri_pid=$!
+        frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+        nframes=${#frames}
+        i=0
+        cols=$(tput cols 2>/dev/null || echo 80)
+        rows=$(tput lines 2>/dev/null || echo 24)
+        row=$(( rows / 2 ))
+        col=$(( cols / 2 ))
+        runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+        while ! ls "$runtime_dir"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 "$niri_pid" 2>/dev/null; do
+            frame=${frames:$i:1}
+            tput cup "$row" "$col" 2>/dev/null
+            printf '%s' "$frame"
+            i=$(( (i + 1) % nframes ))
+            sleep 0.08
+        done
+        tput cnorm 2>/dev/null
+        clear
+        wait "$niri_pid"
     fi
+    exit
 fi
 EOF
         fi
