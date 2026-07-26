@@ -23,8 +23,6 @@ art_width=0
 
 if [[ -r "$ART" ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
-        # Remove only trailing whitespace. Leading whitespace is part of the
-        # artwork and must be preserved or the L shape is destroyed.
         line="${line%${line##*[![:space:]]}}"
         art_lines+=("$line")
         (( ${#line} > art_width )) && art_width=${#line}
@@ -54,8 +52,6 @@ center_text() {
     printf '%*s%s' "$padding" '' "$text"
 }
 
-# Keep the entire ASCII artwork on one shared canvas. This preserves the
-# original shape instead of centering every line independently.
 content_lines=$(( ${#art_lines[@]} + 5 ))
 top_padding=$(( (rows - content_lines) / 2 ))
 (( top_padding < 0 )) && top_padding=0
@@ -69,17 +65,10 @@ done
 
 printf '\n\n'
 center_text "${HOSTNAME_DISPLAY} login: "
-
-# Username input begins directly after the centered login label instead of
-# being reset to column 1 on the far left.
 IFS= read -r username
 
 [[ -n "$username" ]] || exit 1
 
-# Keep the password prompt aligned with the centered login composition.
-login_label="${HOSTNAME_DISPLAY} login: "
-login_start=$(( (cols - ${#login_label}) / 2 ))
-(( login_start < 0 )) && login_start=0
-printf '\033[%dG' "$((login_start + 1))"
-
-exec /bin/login "$username"
+# Authenticate directly and start Niri as the authenticated user.
+# Do not spawn a normal shell first; that was why users had to type `niri` manually.
+exec su - "$username" -c 'exec niri'
