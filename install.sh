@@ -1463,20 +1463,6 @@ phase_apply_spicetify() {
         return 1
     fi
 
-    local prefs_path="$HOME/.config/spotify/prefs"
-
-    if [ -f "$prefs_path" ]; then
-        if ! spicetify config prefs_path "$prefs_path" &>>"$LOG_FILE"; then
-            log_fail "Could not configure Spotify prefs path for Spicetify."
-            return 1
-        fi
-        log_success "Configured Spotify prefs path: $prefs_path"
-    else
-        log_warn "Spotify prefs file not found: $prefs_path"
-        log_warn "Open Spotify once, close it, then rerun the installer."
-        return 1
-    fi
-
     local marketplace_dir="$HOME/.config/spicetify/CustomApps/marketplace"
 
     if [ ! -d "$marketplace_dir" ]; then
