@@ -1283,6 +1283,26 @@ EOF
         fi
     done
 
+    # Automatically start Niri after successful TTY authentication.
+    # The login wrapper authenticates the user, then the login shell runs this.
+    local autostart_marker="# NIRI_RICE_TTY_AUTOSTART"
+
+    for profile in "$HOME/.zprofile" "$HOME/.bash_profile"; do
+        touch "$profile"
+
+        if ! grep -Fq "$autostart_marker" "$profile"; then
+            cat >> "$profile" <<'EOF'
+
+# NIRI_RICE_TTY_AUTOSTART
+if [[ -t 0 ]] && [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[123]$ ]] && [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+    if command -v niri >/dev/null 2>&1; then
+        exec niri
+    fi
+fi
+EOF
+        fi
+    done
+
     sudo systemctl daemon-reload
 
     sudo systemctl enable getty@tty1.service getty@tty2.service getty@tty3.service 2>>"$LOG_FILE" || {
