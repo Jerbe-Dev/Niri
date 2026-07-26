@@ -1,47 +1,136 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-set -u
+import os
+import re
+import select
+import shutil
+import signal
+import sys
+import termios
+import tty
 
-ART="/usr/share/niri-rice/tty/l-ascii.txt"
+ART = "/usr/share/niri-rice/tty/l-ascii.txt"
 
-get_terminal_size() {
-    local rows cols
-    rows=$(tput lines 2>/dev/null || printf '24')
-    cols=$(tput cols 2>/dev/null || printf '80')
-    [[ "$rows" =~ ^[0-9]+$ ]] || rows=24
-    [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
-    printf '%s %s\n' "$rows" "$cols"
-}
 
-read -r rows cols < <(get_terminal_size)
+def terminal_size():
+    size = shutil.get_terminal_size((80, 24))
+    return size.lines, size.columns
 
-art_lines=()
-art_width=0
 
-if [[ -r "$ART" ]]; then
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        art_lines+=("$line")
-        (( ${#line} > art_width )) && art_width=${#line}
-    done < "$ART"
-fi
+def load_art():
+    try:
+        with open(ART, encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+    except OSError:
+        lines = []
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
 
-read -r rows cols < <(get_terminal_size)
-content_lines=$(( ${#art_lines[@]} + 3 ))
-top_padding=$(( (rows - content_lines) / 2 ))
-(( top_padding < 0 )) && top_padding=0
 
-clear
-printf '\n%.0s' $(seq 1 "$top_padding")
+def render_login_screen():
+    rows, cols = terminal_size()
+    art = load_art()
+    group_height = len(art) + 3
+    top = max(0, (rows - group_height) // 2)
 
-for line in "${art_lines[@]}"; do
-    padding=0
-    (( cols > art_width )) && padding=$(( (cols - art_width) / 2 ))
-    printf '%*s%s\n' "$padding" '' "$line"
-done
+    sys.stdout.write("\033[2J\033[H")
+    for index, line in enumerate(art):
+        column = max(0, (cols - len(line)) // 2)
+        sys.stdout.write(f"\033[{top + index + 1};{column + 1}H{line}")
+    sys.stdout.flush()
 
-printf '\n'
+    return top + len(art) + 1
 
-# Let the real system login program handle BOTH username and password.
-# The previous custom username + su flow restarted the wrapper after failed
-# authentication, which made the username prompt appear again and again.
-exec /usr/bin/login
+
+def centered_prompt(text, row):
+    _, cols = terminal_size()
+    column = max(0, (cols - len(text)) // 2)
+    return f"\033[2K\033[{row + 1};{column + 1}H{text}".encode()
+
+
+login_row = render_login_screen()
+password_row = login_row + 1
+
+pid, master_fd = os.forkpty()
+
+if pid == 0:
+    os.execv("/usr/bin/login", ["/usr/bin/login"])
+
+old_terminal = termios.tcgetattr(sys.stdin.fileno())
+state = "login"
+buffer = bytearray()
+
+try:
+    tty.setraw(sys.stdin.fileno())
+
+    while True:
+        readable, _, _ = select.select([master_fd, sys.stdin], [], [])
+
+        if master_fd in readable:
+            try:
+                data = os.read(master_fd, 4096)
+            except OSError:
+                break
+
+            if not data:
+                break
+
+            buffer.extend(data)
+
+            if state == "login":
+                match = re.search(rb"login:\s*$", buffer)
+                if match:
+                    before = buffer[:match.start()]
+                    if before:
+                        os.write(sys.stdout.fileno(), before)
+                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row))
+                    buffer.clear()
+                    state = "username"
+                    continue
+
+            if state == "username":
+                match = re.search(rb"Password:\s*$", buffer)
+                if match:
+                    before = buffer[:match.start()]
+                    if before:
+                        os.write(sys.stdout.fileno(), before)
+                    os.write(sys.stdout.fileno(), centered_prompt("Password: ", password_row))
+                    buffer.clear()
+                    state = "password"
+                    continue
+
+            if state == "password":
+                # Authentication failed: preserve the error output and center
+                # the next login prompt instead of allowing login to reset it
+                # to column zero.
+                match = re.search(rb"login:\s*$", buffer)
+                if match:
+                    before = buffer[:match.start()]
+                    if before:
+                        os.write(sys.stdout.fileno(), before)
+                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row))
+                    buffer.clear()
+                    state = "username"
+                    continue
+
+            # Keep normal output flowing without growing the buffer forever.
+            if len(buffer) > 4096:
+                os.write(sys.stdout.fileno(), buffer)
+                buffer.clear()
+
+        if sys.stdin in readable:
+            data = os.read(sys.stdin.fileno(), 4096)
+            if not data:
+                break
+            os.write(master_fd, data)
+
+finally:
+    termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old_terminal)
+    if buffer:
+        os.write(sys.stdout.fileno(), buffer)
+
+_, status = os.waitpid(pid, 0)
+if os.WIFEXITED(status):
+    sys.exit(os.WEXITSTATUS(status))
+sys.exit(1)
