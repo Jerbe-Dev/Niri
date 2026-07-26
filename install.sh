@@ -95,6 +95,7 @@ readonly DEFAULT_APP_ORDER=(
     "pavucontrol"
     "python"
     "uwsm"
+    "unzip"
 )
 
 declare -A DEFAULT_APP_BINARY_MAP=(
@@ -118,6 +119,7 @@ declare -A DEFAULT_APP_BINARY_MAP=(
     ["pavucontrol"]="pavucontrol"
     ["python"]="python"
     ["uwsm"]="uwsm"
+    ["unzip"]="unzip"
 )
 
 declare -A DEFAULT_APP_PACKAGE_MAP=(
@@ -141,6 +143,7 @@ declare -A DEFAULT_APP_PACKAGE_MAP=(
     ["pavucontrol"]="pavucontrol"
     ["python"]="python"
     ["uwsm"]="uwsm"
+    ["unzip"]="unzip"
 )
 
 # --- State Trackers ---
