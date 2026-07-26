@@ -1498,13 +1498,12 @@ phase_apply_spicetify() {
         log_info "Spotify restore skipped or no previous Spicetify backup exists."
     fi
 
-    if ! spicetify backup apply &>>"$LOG_FILE"; then
-        log_fail "Spicetify could not apply changes automatically."
-        log_warn "Spotify may need to be opened once before Spicetify can apply."
-        return 1
+    if spicetify backup apply &>>"$LOG_FILE"; then
+        log_success "Spicetify successfully applied to Spotify."
+    else
+        log_warn "Spicetify could not apply changes automatically."
+        log_warn "Marketplace is installed and registered. Run \"spicetify backup apply\" after opening Spotify once."
     fi
-
-    log_success "Spicetify successfully applied to Spotify."
 
     local custom_apps
     custom_apps=$(spicetify config custom_apps 2>/dev/null || true)
