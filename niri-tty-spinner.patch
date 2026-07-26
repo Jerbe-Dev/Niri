@@ -1,0 +1,196 @@
+diff -ruN a/configs/tty/l-ascii.txt b/configs/tty/l-ascii.txt
+--- a/configs/tty/l-ascii.txt	2026-07-26 18:10:52.716918590 +0000
++++ b/configs/tty/l-ascii.txt	2026-07-26 18:10:52.726353894 +0000
+@@ -1,13 +1,27 @@
+-██
+-██
+-██
+-██
+-██
+-██
+-██
+-██
+-██
+-██
+-██
+-████████████████████████
+-████████████████████████
++                                           ███████████     ██▄   █████
++                                         ███████████████████   █████
++                                        ███████████████████   █████
++                                        █             ▄███   █████▄
++                                                     ████    █████▄
++                                                    █████   ▄█████▄
++                                                    █████   ███████
++                                                   ██████   ▄██████
++                                                   ██████    ██████
++                                                   ██████    ██████
++                                                   ██████    ██████
++                                              ███████████    ██████
++                                            █████████████    ██████
++                                                  ███████    ██████
++                                                   ██████    █████
++                                                    █████    █████
++                                              ███████████    ████
++                                                  ███████   ████
++                                                   █████   ████
++                                                    ████   ███
++                                                   ▄███  ▄██
++                                                   ███  ██   ██████████
++                                                  ███ █████████████████████
++                                                 ██████████████████████████████
++                                                ████████▄     ▄██████████████▄
++                                              ████                  ████████
++                                            ▄█                         ███
+diff -ruN a/install.sh b/install.sh
+--- a/install.sh	2026-07-26 18:10:52.713396198 +0000
++++ b/install.sh	2026-07-26 18:10:52.724773399 +0000
+@@ -169,6 +169,20 @@
+ mkdir -p "$LOG_DIR"
+ echo "=== NIRI RICE INITIALIZATION AUDIT RUNNING AT $(date) ===" > "$LOG_FILE"
+ 
++join_sp() {
++    # Joins args with a literal space, regardless of the global IFS setting.
++    local IFS=' '
++    echo "$*"
++}
++
++join_or_none() {
++    if [ "$#" -eq 0 ]; then
++        echo "None"
++    else
++        join_sp "$@"
++    fi
++}
++
+ log_to_file() {
+     local level="$1"
+     local msg="$2"
+@@ -456,7 +470,7 @@
+         return 0
+     fi
+ 
+-    echo -e "  The following programs are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
++    echo -e "  The following programs are missing: ${YELLOW}$(join_sp "${missing_pkgs[@]}")${NC}"
+ 
+     local choice="Y"
+     if $interactive; then
+@@ -547,7 +561,7 @@
+         return 0
+     fi
+ 
+-    echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}${missing_pkgs[*]}${NC}"
++    echo -e "  The following default apps (browser, editor, notes, file manager, music) are missing: ${YELLOW}$(join_sp "${missing_pkgs[@]}")${NC}"
+ 
+     local choice="Y"
+     if $interactive; then
+@@ -648,8 +662,13 @@
+         fi
+     done
+ 
++    if ! mkdir -p "$BACKUP_DIR/.config" 2>>"$LOG_FILE"; then
++        log_fail "Failed to initialize backup matrix .config subdirectory."
++        return 1
++    fi
++
+     for mod in "${verified_backups[@]}"; do
+-        if cp -a "$HOME/.config/$mod" "$BACKUP_DIR/" 2>>"$LOG_FILE"; then
++        if cp -a "$HOME/.config/$mod" "$BACKUP_DIR/.config/" 2>>"$LOG_FILE"; then
+             log_success "Saved backup copy of: ~/.config/$mod"
+         else
+             log_fail "Failed to copy backup configurations for module component target: $mod"
+@@ -827,7 +846,7 @@
+     done
+ 
+     if [ ${#missing_shell_pkgs[@]} -gt 0 ]; then
+-        log_info "Missing shell dependencies: ${missing_shell_pkgs[*]}"
++        log_info "Missing shell dependencies: $(join_sp "${missing_shell_pkgs[@]}")"
+         if ! $HAS_INTERNET; then
+             log_fail "Network access unavailable. Cannot install missing required shell packages."
+             return 1
+@@ -991,7 +1010,29 @@
+     {
+         printf "\n# Niri Rice TTY Autostart\n"
+         printf "if uwsm check may-start 2; then\n"
+-        printf "    exec uwsm start -- niri\n"
++        printf "    tput civis 2>/dev/null\n"
++        printf "    clear\n"
++        printf "    uwsm start -- niri &\n"
++        printf "    niri_pid=\$!\n"
++        printf "    frames='\xe2\xa0\x8b\xe2\xa0\x99\xe2\xa0\xb9\xe2\xa0\xb8\xe2\xa0\xbc\xe2\xa0\xb4\xe2\xa0\xa6\xe2\xa0\xa7\xe2\xa0\x87\xe2\xa0\x8f'\n"
++        printf "    nframes=\${#frames}\n"
++        printf "    i=0\n"
++        printf "    cols=\$(tput cols 2>/dev/null || echo 80)\n"
++        printf "    rows=\$(tput lines 2>/dev/null || echo 24)\n"
++        printf "    row=\$(( rows / 2 ))\n"
++        printf "    col=\$(( cols / 2 ))\n"
++        printf "    runtime_dir=\"\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}\"\n"
++        printf "    while ! ls \"\$runtime_dir\"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 \"\$niri_pid\" 2>/dev/null; do\n"
++        printf "        frame=\${frames:\$i:1}\n"
++        printf "        tput cup \"\$row\" \"\$col\" 2>/dev/null\n"
++        printf "        printf '%%s' \"\$frame\"\n"
++        printf "        i=\$(( (i + 1) %% nframes ))\n"
++        printf "        sleep 0.08\n"
++        printf "    done\n"
++        printf "    tput cnorm 2>/dev/null\n"
++        printf "    clear\n"
++        printf "    wait \"\$niri_pid\"\n"
++        printf "    exit\n"
+         printf "fi\n"
+     } >> "$zprofile" || {
+         log_fail "Failed to update ~/.zprofile"
+@@ -1076,14 +1117,14 @@
+     end_time=$(date +%s)
+     local elapsed=$((end_time - START_TIME))
+ 
+-    echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}${INSTALLED_PACKAGES[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}${ALREADY_PRESENT_PACKAGES[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}${FAILED_PACKAGES[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Installed Configs:${NC}        ${GREEN}${INSTALLED_CONFIGS[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Skipped Configs:${NC}          ${YELLOW}${SKIPPED_CONFIGS[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}${FAILED_CONFIGS[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}${FAILED_BACKUPS[*]:-None}${NC}"
+-    echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}${FAILED_ASSETS[*]:-None}${NC}"
++    echo -e "  ${BOLD}* Installed Packages:${NC}       ${GREEN}$(join_or_none "${INSTALLED_PACKAGES[@]}")${NC}"
++    echo -e "  ${BOLD}* Already Met Packages:${NC}    ${CYAN}$(join_or_none "${ALREADY_PRESENT_PACKAGES[@]}")${NC}"
++    echo -e "  ${BOLD}* Failed Package Installs:${NC}   ${RED}$(join_or_none "${FAILED_PACKAGES[@]}")${NC}"
++    echo -e "  ${BOLD}* Installed Configs:${NC}        ${GREEN}$(join_or_none "${INSTALLED_CONFIGS[@]}")${NC}"
++    echo -e "  ${BOLD}* Skipped Configs:${NC}          ${YELLOW}$(join_or_none "${SKIPPED_CONFIGS[@]}")${NC}"
++    echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}$(join_or_none "${FAILED_CONFIGS[@]}")${NC}"
++    echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}$(join_or_none "${FAILED_BACKUPS[@]}")${NC}"
++    echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}$(join_or_none "${FAILED_ASSETS[@]}")${NC}"
+ 
+     if [ -d "$BACKUP_DIR" ]; then
+         echo -e "  ${BOLD}* Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
+@@ -1296,8 +1337,30 @@
+ # NIRI_RICE_TTY_AUTOSTART
+ if [[ -t 0 ]] && [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[123]$ ]] && [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+     if command -v niri >/dev/null 2>&1; then
+-        exec niri
++        tput civis 2>/dev/null
++        clear
++        niri &
++        niri_pid=$!
++        frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
++        nframes=${#frames}
++        i=0
++        cols=$(tput cols 2>/dev/null || echo 80)
++        rows=$(tput lines 2>/dev/null || echo 24)
++        row=$(( rows / 2 ))
++        col=$(( cols / 2 ))
++        runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
++        while ! ls "$runtime_dir"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 "$niri_pid" 2>/dev/null; do
++            frame=${frames:$i:1}
++            tput cup "$row" "$col" 2>/dev/null
++            printf '%s' "$frame"
++            i=$(( (i + 1) % nframes ))
++            sleep 0.08
++        done
++        tput cnorm 2>/dev/null
++        clear
++        wait "$niri_pid"
+     fi
++    exit
+ fi
+ EOF
+         fi
