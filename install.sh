@@ -1606,7 +1606,32 @@ phase_apply_spicetify() {
         return 1
     fi
 
-    sleep 2
+    # Electron apps like Spotify spawn several child (renderer/GPU) processes
+    # while starting up. Instead of a fixed sleep -- too short on slower
+    # hardware, wasteful on faster hardware -- wait for the process count to
+    # hold steady across consecutive samples, which indicates startup has
+    # settled, while still capping the total wait so a stuck process can't
+    # hang the installer forever.
+    log_info "Waiting for Spotify's startup to settle..."
+    local settle_checks=0
+    local previous_count=-1
+    local waited=0
+    local max_wait=200   # 200 * 0.1s = 20s ceiling
+    while [ "$waited" -lt "$max_wait" ]; do
+        local current_count
+        current_count=$(pgrep -c -x spotify 2>/dev/null || echo 0)
+        if [ "$current_count" -gt 0 ] && [ "$current_count" -eq "$previous_count" ]; then
+            settle_checks=$((settle_checks + 1))
+            if [ "$settle_checks" -ge 5 ]; then
+                break
+            fi
+        else
+            settle_checks=0
+        fi
+        previous_count="$current_count"
+        sleep 0.1
+        waited=$((waited + 1))
+    done
 
     log_info "Stopping Spotify once before applying Spicetify..."
     pkill -TERM -x spotify || true
@@ -1688,7 +1713,7 @@ run_orchestrated_installer() {
     phase_configure_bluetooth
     phase_configure_bluetooth_resume
     phase_deploy_brave_flags
-    phase_apply_spicetify
+    phase_apply_spicetify || true
 
     phase_signal_environments
     phase_compile_summary
