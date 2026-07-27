@@ -321,6 +321,12 @@ get_discovered_modules() {
         for entry in "$SCRIPT_DIR"/configs/*; do
             if [ -d "$entry" ]; then
                 local base_entry="${entry##*/}"
+
+                # Special installer-managed directories are not generic config modules.
+                if [[ "$base_entry" == "tty" ]]; then
+                    continue
+                fi
+
                 local is_known=false
                 local known_item
 
@@ -987,61 +993,6 @@ phase_install_shell_config() {
     return 0
 }
 
-phase_configure_tty_autostart() {
-    log_step "Configuring TTY Autostart"
-    if $DRY_RUN; then
-        log_info "Dry Run: Would inject uwsm autostart into ~/.zprofile"
-        return 0
-    fi
-
-    local zprofile="$HOME/.zprofile"
-    local marker="# Niri Rice TTY Autostart"
-
-    if grep -qF "$marker" "$zprofile" 2>/dev/null; then
-        log_success "TTY Autostart already configured."
-        return 0
-    fi
-
-    if ! command -v uwsm &>/dev/null; then
-        log_fail "uwsm is not installed. Cannot configure TTY autostart."
-        return 1
-    fi
-
-    {
-        printf "\n# Niri Rice TTY Autostart\n"
-        printf "if uwsm check may-start 2; then\n"
-        printf "    tput civis 2>/dev/null\n"
-        printf "    clear\n"
-        printf "    uwsm start -- niri &\n"
-        printf "    niri_pid=\$!\n"
-        printf "    frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'\n"
-        printf "    nframes=\${#frames}\n"
-        printf "    i=0\n"
-        printf "    cols=\$(tput cols 2>/dev/null || echo 80)\n"
-        printf "    rows=\$(tput lines 2>/dev/null || echo 24)\n"
-        printf "    row=\$(( rows / 2 ))\n"
-        printf "    col=\$(( cols / 2 ))\n"
-        printf "    runtime_dir=\"\${XDG_RUNTIME_DIR:-/run/user/\$(id -u)}\"\n"
-        printf "    while ! ls \"\$runtime_dir\"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 \"\$niri_pid\" 2>/dev/null; do\n"
-        printf "        frame=\${frames:\$i:1}\n"
-        printf "        tput cup \"\$row\" \"\$col\" 2>/dev/null\n"
-        printf "        printf '%%s' \"\$frame\"\n"
-        printf "        i=\$(( (i + 1) %% nframes ))\n"
-        printf "        sleep 0.08\n"
-        printf "    done\n"
-        printf "    tput cnorm 2>/dev/null\n"
-        printf "    clear\n"
-        printf "    wait \"\$niri_pid\"\n"
-        printf "    exit\n"
-        printf "fi\n"
-    } >> "$zprofile" || {
-        log_fail "Failed to update ~/.zprofile"
-        return 1
-    }
-
-    log_success "Injected uwsm autostart block into ~/.zprofile"
-}
-
 phase_configure_bluetooth_resume() {
     log_step "Configuring Bluetooth Resume Fix"
 
@@ -1323,47 +1274,24 @@ EOF
         fi
     done
 
-    # Automatically start Niri after successful TTY authentication.
-    # The login wrapper authenticates the user, then the login shell runs this.
-    local autostart_marker="# NIRI_RICE_TTY_AUTOSTART"
+    # Niri autostart is owned by ~/.zprofile only.
+    # Use one UWSM-based mechanism; do not create a competing raw `niri &` block.
+    local zprofile="$HOME/.zprofile"
+    local autostart_marker="# Niri Rice TTY Autostart"
 
-    for profile in "$HOME/.zprofile" "$HOME/.bash_profile"; do
-        touch "$profile"
+    touch "$zprofile"
 
-        if ! grep -Fq "$autostart_marker" "$profile"; then
-            cat >> "$profile" <<'EOF'
+    if ! grep -Fq "$autostart_marker" "$zprofile"; then
+        cat >> "$zprofile" <<'EOF'
 
-# NIRI_RICE_TTY_AUTOSTART
-if [[ -t 0 ]] && [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[123]$ ]] && [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
-    if command -v niri >/dev/null 2>&1; then
-        tput civis 2>/dev/null
-        clear
-        niri &
-        niri_pid=$!
-        frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-        nframes=${#frames}
-        i=0
-        cols=$(tput cols 2>/dev/null || echo 80)
-        rows=$(tput lines 2>/dev/null || echo 24)
-        row=$(( rows / 2 ))
-        col=$(( cols / 2 ))
-        runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
-        while ! ls "$runtime_dir"/wayland-*[0-9] >/dev/null 2>&1 && kill -0 "$niri_pid" 2>/dev/null; do
-            frame=${frames:$i:1}
-            tput cup "$row" "$col" 2>/dev/null
-            printf '%s' "$frame"
-            i=$(( (i + 1) % nframes ))
-            sleep 0.08
-        done
-        tput cnorm 2>/dev/null
-        clear
-        wait "$niri_pid"
+# Niri Rice TTY Autostart
+if [[ -t 0 ]] && [[ "$(tty 2>/dev/null)" =~ ^/dev/tty[123]$ ]] && [[ -z "${WAYLAND_DISPLAY:-}" ]] && command -v uwsm >/dev/null 2>&1; then
+    if uwsm check may-start 2>/dev/null; then
+        exec uwsm start -- niri
     fi
-    exit
 fi
 EOF
-        fi
-    done
+    fi
 
     sudo systemctl daemon-reload
 
@@ -1701,20 +1629,31 @@ run_orchestrated_installer() {
     fi
 
     if ! phase_install_shell_config "$interactive"; then
-        log_fail "Shell configuration failed. Initiating automatic rollback..."
-        if [ -d "$BACKUP_DIR" ]; then
-            restore_backup_engine "$BACKUP_DIR" || true
-        fi
-        phase_compile_summary
-        return 1
+        log_warn "Shell configuration failed. Continuing with the rest of the installation."
+        FAILED_OPTIONAL+=("Shell configuration")
     fi
 
-    phase_configure_tty_autostart
-    phase_configure_login_manager
-    phase_configure_audio
-    phase_configure_bluetooth
-    phase_configure_bluetooth_resume
-    phase_deploy_brave_flags
+    # TTY autostart is owned by phase_configure_login_manager.
+    # Do not inject a second competing autostart block into ~/.zprofile.
+    if ! phase_configure_login_manager; then
+        FAILED_OPTIONAL+=("Getty TTY Login")
+    fi
+
+    if ! phase_configure_audio; then
+        FAILED_OPTIONAL+=("PipeWire Audio")
+    fi
+
+    if ! phase_configure_bluetooth; then
+        FAILED_OPTIONAL+=("Bluetooth")
+    fi
+
+    if ! phase_configure_bluetooth_resume; then
+        FAILED_OPTIONAL+=("Bluetooth Resume Fix")
+    fi
+
+    if ! phase_deploy_brave_flags; then
+        FAILED_OPTIONAL+=("Brave Flags")
+    fi
 
     if ! phase_apply_spicetify; then
         FAILED_OPTIONAL+=("Spotify/Spicetify")
