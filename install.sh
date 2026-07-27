@@ -155,6 +155,7 @@ SKIPPED_CONFIGS=()
 FAILED_CONFIGS=()
 FAILED_BACKUPS=()
 FAILED_ASSETS=()
+FAILED_OPTIONAL=()
 INSTALLED_PACKAGES=()
 ALREADY_PRESENT_PACKAGES=()
 FAILED_PACKAGES=()
@@ -1124,6 +1125,7 @@ phase_compile_summary() {
     echo -e "  ${BOLD}* Failed Configs:${NC}           ${RED}$(join_or_none "${FAILED_CONFIGS[@]}")${NC}"
     echo -e "  ${BOLD}* Failed Backups:${NC}          ${RED}$(join_or_none "${FAILED_BACKUPS[@]}")${NC}"
     echo -e "  ${BOLD}* Failed Assets:${NC}           ${RED}$(join_or_none "${FAILED_ASSETS[@]}")${NC}"
+    echo -e "  ${BOLD}* Failed Optional Steps:${NC}    ${RED}$(join_or_none "${FAILED_OPTIONAL[@]}")${NC}"
 
     if [ -d "$BACKUP_DIR" ]; then
         echo -e "  ${BOLD}* Backup Matrix Root:${NC}       ${PURPLE}$BACKUP_DIR${NC}"
@@ -1132,7 +1134,7 @@ phase_compile_summary() {
     echo -e "  ${BOLD}* Run Time Processing:${NC}      ${YELLOW}$elapsed seconds${NC}"
     echo -e "${BLUE}-------------------------------------------------------------------${NC}"
 
-    if [ ${#FAILED_PACKAGES[@]} -gt 0 ] || [ ${#FAILED_CONFIGS[@]} -gt 0 ] || [ ${#FAILED_BACKUPS[@]} -gt 0 ] || [ ${#FAILED_ASSETS[@]} -gt 0 ]; then
+    if [ ${#FAILED_PACKAGES[@]} -gt 0 ] || [ ${#FAILED_CONFIGS[@]} -gt 0 ] || [ ${#FAILED_BACKUPS[@]} -gt 0 ] || [ ${#FAILED_ASSETS[@]} -gt 0 ] || [ ${#FAILED_OPTIONAL[@]} -gt 0 ]; then
         echo -e "\n${RED}${BOLD}        Installation Completed With Errors        ${NC}"
         echo -e "${YELLOW}   Review the failed packages/configurations above. ${NC}\n"
     else
@@ -1713,7 +1715,10 @@ run_orchestrated_installer() {
     phase_configure_bluetooth
     phase_configure_bluetooth_resume
     phase_deploy_brave_flags
-    phase_apply_spicetify || true
+
+    if ! phase_apply_spicetify; then
+        FAILED_OPTIONAL+=("Spotify/Spicetify")
+    fi
 
     phase_signal_environments
     phase_compile_summary
