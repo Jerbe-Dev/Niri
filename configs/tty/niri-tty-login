@@ -27,7 +27,7 @@ def load_art():
         lines.pop()
 
     # Remove only the common left margin. This keeps the shape of the logo
-    # intact while making room for the login prompts beside it.
+    # intact while letting us re-center it as a block later.
     nonempty = [line for line in lines if line.strip()]
     if nonempty:
         margin = min(len(line) - len(line.lstrip()) for line in nonempty)
@@ -37,37 +37,44 @@ def load_art():
     return lines
 
 
+LOGIN_TEXT = "login: "
+PASSWORD_TEXT = "Password: "
+BLANK_ROWS_AFTER_ART = 1
+
+
 def render_login_screen():
     rows, cols = terminal_size()
     art = load_art()
     art_width = max((len(line) for line in art), default=0)
     art_height = len(art)
 
-    # Keep the logo on the left and the real login prompts on the right.
-    # The whole two-column layout is centered as one group.
-    gap = 6
-    prompt_width = len("Password: ")
-    total_width = art_width + gap + prompt_width
-    left = max(0, (cols - total_width) // 2)
-    art_left = left
-    prompt_left = left + art_width + gap
+    # Everything is stacked vertically as one composition: the logo, a blank
+    # spacer row, the login prompt, then the password prompt. Each element is
+    # centered independently on its own width, so they all share the same
+    # horizontal center line even though their widths differ.
+    total_height = art_height + BLANK_ROWS_AFTER_ART + 2
+    top = max(0, (rows - total_height) // 2)
 
-    top = max(0, (rows - art_height) // 2)
+    art_left = max(0, (cols - art_width) // 2)
 
     sys.stdout.write("\033[2J\033[H")
     for index, line in enumerate(art):
         sys.stdout.write(f"\033[{top + index + 1};{art_left + 1}H{line}")
     sys.stdout.flush()
 
-    return top + (art_height // 2), prompt_left
+    login_row = top + art_height + BLANK_ROWS_AFTER_ART
+    password_row = login_row + 1
+    login_col = max(0, (cols - len(LOGIN_TEXT)) // 2)
+    password_col = max(0, (cols - len(PASSWORD_TEXT)) // 2)
+
+    return login_row, login_col, password_row, password_col
 
 
 def centered_prompt(text, row, column):
     return f"\033[2K\033[{row + 1};{column + 1}H{text}".encode()
 
 
-login_row, prompt_column = render_login_screen()
-password_row = login_row + 1
+login_row, login_col, password_row, password_col = render_login_screen()
 
 pid, master_fd = os.forkpty()
 
@@ -101,7 +108,7 @@ try:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row, prompt_column))
+                    os.write(sys.stdout.fileno(), centered_prompt(LOGIN_TEXT, login_row, login_col))
                     buffer.clear()
                     state = "username"
                     continue
@@ -112,7 +119,7 @@ try:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("Password: ", password_row, prompt_column))
+                    os.write(sys.stdout.fileno(), centered_prompt(PASSWORD_TEXT, password_row, password_col))
                     buffer.clear()
                     state = "password"
                     continue
@@ -123,7 +130,7 @@ try:
                     before = buffer[:match.start()]
                     if before:
                         os.write(sys.stdout.fileno(), before)
-                    os.write(sys.stdout.fileno(), centered_prompt("login: ", login_row, prompt_column))
+                    os.write(sys.stdout.fileno(), centered_prompt(LOGIN_TEXT, login_row, login_col))
                     buffer.clear()
                     state = "username"
                     continue
